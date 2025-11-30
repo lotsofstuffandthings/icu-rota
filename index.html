@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ICU Consultant Rota</title>
+    <title>ICU Consultant Rota v5</title>
     <style>
         :root {
             --primary: #0f766e;
@@ -477,6 +477,35 @@
         
         .rota-table .weekend-cell {
             background: var(--weekend);
+        }
+        
+        /* Holiday highlighting - mild backgrounds */
+        .rota-table .bank-holiday-cell {
+            background: #fecaca !important;
+        }
+        .rota-table .school-holiday-cell {
+            background: #fef9c3 !important;
+        }
+        .rota-table .bank-holiday-cell.school-holiday-cell {
+            background: linear-gradient(135deg, #fecaca 50%, #fef9c3 50%) !important;
+        }
+        .rota-table tr.school-holiday-row td.week-date {
+            background: #fef9c3;
+        }
+        .holiday-badge {
+            font-size: 0.65rem;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-left: 4px;
+            white-space: nowrap;
+        }
+        .holiday-badge.bh {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .holiday-badge.sh {
+            background: #fef9c3;
+            color: #a16207;
         }
         
         /* Shifts Owed Table */
@@ -1442,6 +1471,13 @@
             <div id="rota-tab" class="tab-content">
                 <div id="rotaHolidayWarnings"></div>
                 <div class="rota-card">
+                    <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; margin: 0;">
+                            <input type="checkbox" id="highlightHolidaysToggle" checked onchange="toggleHolidayHighlight()" style="width: 16px; height: 16px;">
+                            <span>Highlight holidays</span>
+                        </label>
+                        <div id="holidaySummaryBadges" style="font-size: 0.8rem;"></div>
+                    </div>
                     <div class="table-wrapper">
                         <table class="rota-table" id="rotaTable">
                             <!-- Table will be populated by JavaScript -->
@@ -1468,6 +1504,14 @@
                             <div class="legend-color" style="background: var(--highlight); border-color: var(--highlight-border);"></div>
                             <span>Your Shifts</span>
                         </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #fecaca;"></div>
+                            <span>Bank Holiday</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #fef9c3;"></div>
+                            <span>School Holiday</span>
+                        </div>
                     </div>
             </div>
         </div>
@@ -1475,6 +1519,13 @@
         <!-- Shifts Balance Tab -->
         <div id="shifts-tab" class="tab-content">
             <div class="rota-card">
+                <div style="padding: 1rem; background: #f0f9ff; border-bottom: 1px solid var(--border); font-size: 0.85rem; color: #1e40af;">
+                    <strong>What is Rolling Shift Balance?</strong><br>
+                    Each consultant has annual shift targets split across 4 cycles. This table tracks the running balance: 
+                    <span style="color: #dc2626; font-weight: 600;">+ve (red)</span> = owes shifts (did fewer than target), 
+                    <span style="color: #16a34a; font-weight: 600;">−ve (green)</span> = owed relief (did more than target). 
+                    Balances carry forward to ensure fair distribution over the year.
+                </div>
                 <div class="table-wrapper">
                     <table class="owed-table" id="owedTable">
                         <!-- Table will be populated by JavaScript -->
@@ -1893,6 +1944,7 @@
         let storedRotas = {};
         let pendingRotaData = null;
         let pendingShiftsOwed = null;
+        let highlightHolidays = true; // Toggle for holiday highlighting
         
         // Availability state
         let loggedInConsultant = null;
@@ -2437,8 +2489,6 @@
                 return;
             }
             
-            let html = '';
-            
             // Get date range from current rota
             const firstWeek = currentRotaData[0];
             const lastWeek = currentRotaData[currentRotaData.length - 1];
@@ -2469,58 +2519,52 @@
                 }
             });
             
-            // Bank holiday warning (more prominent)
-            if (bankHolidaysInPeriod.length > 0) {
-                html += `
-                    <div class="holiday-warning-banner bank-holiday-warning">
-                        <div class="warning-icon">⚠️</div>
-                        <div class="warning-content">
-                            <div class="warning-title">Bank Holidays in This Period</div>
-                            <div class="warning-text">
-                                This rota period contains ${bankHolidaysInPeriod.length} bank holiday${bankHolidaysInPeriod.length > 1 ? 's' : ''}. 
-                                Ensure adequate coverage is arranged and record any bank holidays worked as lieu days.
-                            </div>
-                            <div class="holiday-list">
-                                ${bankHolidaysInPeriod.map(bh => {
-                                    const d = new Date(bh.date);
-                                    const formatted = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-                                    return `<span class="holiday-chip">🏛️ ${formatted}: ${bh.name}</span>`;
-                                }).join('')}
-                            </div>
-                        </div>
-                    </div>
-                `;
+            // Only show banner if there are holidays
+            if (bankHolidaysInPeriod.length === 0 && schoolHolidaysInPeriod.length === 0) {
+                container.innerHTML = '';
+                return;
             }
             
-            // School holiday warning (less prominent)
+            let html = '<div style="padding: 0.75rem 1rem; background: #f8fafc; border-bottom: 1px solid var(--border); font-size: 0.85rem;">';
+            
+            // Bank holidays - list with dates
+            if (bankHolidaysInPeriod.length > 0) {
+                const bhList = bankHolidaysInPeriod.map(bh => {
+                    const d = new Date(bh.date);
+                    const formatted = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                    return `<strong>${formatted}</strong> ${bh.name}`;
+                }).join(' · ');
+                html += `<div style="margin-bottom: ${schoolHolidaysInPeriod.length > 0 ? '0.5rem' : '0'};">`;
+                html += `<span style="color: #dc2626; font-weight: 600;">Bank Holidays:</span> ${bhList}`;
+                html += '</div>';
+            }
+            
+            // School holidays - list with date ranges
             if (schoolHolidaysInPeriod.length > 0) {
-                // Group by holiday name
+                // Group consecutive weeks by holiday name
                 const grouped = {};
                 schoolHolidaysInPeriod.forEach(sh => {
                     if (!grouped[sh.name]) grouped[sh.name] = [];
-                    grouped[sh.name].push(sh);
+                    grouped[sh.name].push(sh.weekStart);
                 });
                 
-                html += `
-                    <div class="holiday-warning-banner">
-                        <div class="warning-icon">🏖️</div>
-                        <div class="warning-content">
-                            <div class="warning-title">School Holidays in This Period</div>
-                            <div class="warning-text">
-                                ${Object.keys(grouped).length} school holiday period${Object.keys(grouped).length > 1 ? 's' : ''} 
-                                (${schoolHolidaysInPeriod.length} week${schoolHolidaysInPeriod.length > 1 ? 's' : ''} total).
-                                Consider availability preferences for consultants with school-aged children.
-                            </div>
-                            <div class="holiday-list">
-                                ${Object.entries(grouped).map(([name, weeks]) => {
-                                    return `<span class="holiday-chip">📅 ${name} (${weeks.length} wk${weeks.length > 1 ? 's' : ''})</span>`;
-                                }).join('')}
-                            </div>
-                        </div>
-                    </div>
-                `;
+                const shList = Object.entries(grouped).map(([name, weeks]) => {
+                    // Show date range for the holiday
+                    const firstParts = weeks[0].split('/');
+                    const lastParts = weeks[weeks.length - 1].split('/');
+                    const firstDate = new Date(firstParts[2], firstParts[1] - 1, firstParts[0]);
+                    const lastDate = new Date(lastParts[2], lastParts[1] - 1, lastParts[0]);
+                    lastDate.setDate(lastDate.getDate() + 6); // End of last week
+                    
+                    const startStr = firstDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                    const endStr = lastDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                    return `<strong>${name}</strong> ${startStr}–${endStr}`;
+                }).join(' · ');
+                
+                html += `<div><span style="color: #a16207; font-weight: 600;">School Holidays:</span> ${shList}</div>`;
             }
             
+            html += '</div>';
             container.innerHTML = html;
         }
         
@@ -2535,6 +2579,9 @@
             
             // Render holiday warnings first
             renderRotaHolidayWarnings();
+            
+            // Update holiday summary badges
+            updateHolidaySummaryBadges();
             
             const table = document.getElementById('rotaTable');
             
@@ -2576,7 +2623,49 @@
             let bodyHTML = '<tbody>';
             
             currentRotaData.forEach(week => {
-                bodyHTML += `<tr>`;
+                const weekKey = convertWeekStartToKey(week.weekStart);
+                const isSchoolHoliday = schoolHolidays[weekKey];
+                
+                // Check for bank holidays - calculate actual date for each day column
+                const bankHolidayDays = {};
+                if (highlightHolidays) {
+                    // Parse week start date (DD/MM/YYYY)
+                    const parts = week.weekStart.split('/');
+                    const weekStartDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                    
+                    // The week display shows Mon-Sun, but weekStart might be any day
+                    // We need to find Monday of this week
+                    const dayOfWeek = weekStartDate.getDay(); // 0=Sun, 1=Mon, etc.
+                    const mondayOffset = dayOfWeek === 0 ? 1 : (1 - dayOfWeek); // Days to add to get to Monday
+                    
+                    const monday = new Date(weekStartDate);
+                    monday.setDate(weekStartDate.getDate() + mondayOffset);
+                    
+                    // Helper to format date as YYYY-MM-DD without timezone issues
+                    function formatDateKey(d) {
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${day}`;
+                    }
+                    
+                    // Check each day Mon-Sun
+                    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                    dayNames.forEach((dayName, i) => {
+                        const dayDate = new Date(monday);
+                        dayDate.setDate(monday.getDate() + i);
+                        const dateKey = formatDateKey(dayDate);
+                        const bh = isBankHoliday(dateKey);
+                        if (bh) {
+                            bankHolidayDays[dayName] = bh.name;
+                        }
+                    });
+                }
+                
+                const rowClass = (highlightHolidays && isSchoolHoliday) ? 'school-holiday-row' : '';
+                bodyHTML += `<tr class="${rowClass}">`;
+                
+                // Week date cell - no emoji, just highlight via row class
                 bodyHTML += `<td class="week-date">${formatDateRange(week.weekStart)}</td>`;
                 
                 const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -2585,6 +2674,7 @@
                 allDays.forEach(day => {
                     const dayData = week.days[day];
                     const weekend = isWeekend.includes(day);
+                    const isBH = bankHolidayDays[day];
                     
                     ['d1', 'd2', 'd3', 'rrt'].forEach(slot => {
                         const consultant = dayData[slot];
@@ -2592,13 +2682,18 @@
                         if (weekend && slot !== 'rrt') classes.push('weekend-cell');
                         if (slot === 'rrt') classes.push('rrt-cell');
                         
+                        // Add holiday highlighting
+                        if (highlightHolidays && isBH) classes.push('bank-holiday-cell');
+                        if (highlightHolidays && isSchoolHoliday) classes.push('school-holiday-cell');
+                        
                         bodyHTML += `<td class="${classes.join(' ')}" data-consultant="${consultant}">${consultant}</td>`;
                     });
                 });
                 
                 // VA column
-                const vaClass = week.va ? 'consultant-cell va-cell' : '';
-                bodyHTML += `<td class="${vaClass}" data-consultant="${week.va}">${week.va || '-'}</td>`;
+                let vaClasses = week.va ? ['consultant-cell', 'va-cell'] : [];
+                if (highlightHolidays && isSchoolHoliday) vaClasses.push('school-holiday-cell');
+                bodyHTML += `<td class="${vaClasses.join(' ')}" data-consultant="${week.va}">${week.va || '-'}</td>`;
                 
                 bodyHTML += '</tr>';
             });
@@ -2606,6 +2701,61 @@
             bodyHTML += '</tbody>';
             
             table.innerHTML = headerHTML + bodyHTML;
+        }
+        
+        // Get all dates in a week from DD/MM/YYYY start
+        function getWeekDatesFromStart(dateStr) {
+            const parts = dateStr.split('/');
+            const startDate = new Date(parts[2], parts[1] - 1, parts[0]);
+            const dates = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(startDate);
+                d.setDate(startDate.getDate() + i);
+                dates.push(d.toISOString().split('T')[0]);
+            }
+            return dates;
+        }
+        
+        // Update holiday summary badges
+        function updateHolidaySummaryBadges() {
+            const container = document.getElementById('holidaySummaryBadges');
+            if (!container || !currentRotaData || currentRotaData.length === 0) return;
+            
+            // Get date range
+            const firstWeek = currentRotaData[0].weekStart;
+            const lastWeek = currentRotaData[currentRotaData.length - 1].weekStart;
+            const parts1 = firstWeek.split('/');
+            const parts2 = lastWeek.split('/');
+            const startDate = new Date(parts1[2], parts1[1] - 1, parts1[0]);
+            const endDate = new Date(parts2[2], parts2[1] - 1, parts2[0]);
+            endDate.setDate(endDate.getDate() + 6);
+            
+            // Count holidays
+            const bankHolidaysInPeriod = getBankHolidaysInRange(startDate, endDate);
+            let schoolHolidayCount = 0;
+            currentRotaData.forEach(week => {
+                const weekKey = convertWeekStartToKey(week.weekStart);
+                if (schoolHolidays[weekKey]) schoolHolidayCount++;
+            });
+            
+            let html = '';
+            if (bankHolidaysInPeriod.length > 0) {
+                const bhDates = bankHolidaysInPeriod.map(bh => {
+                    const d = new Date(bh.date);
+                    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                }).join(', ');
+                html += `<span style="background:#fecaca;color:#b91c1c;padding:2px 8px;border-radius:4px;margin-right:6px;font-size:0.8rem;">BH: ${bhDates}</span>`;
+            }
+            if (schoolHolidayCount > 0) {
+                html += `<span style="background:#fef9c3;color:#a16207;padding:2px 8px;border-radius:4px;font-size:0.8rem;">${schoolHolidayCount} School Hol Wk${schoolHolidayCount > 1 ? 's' : ''}</span>`;
+            }
+            container.innerHTML = html;
+        }
+        
+        // Toggle holiday highlighting
+        function toggleHolidayHighlight() {
+            highlightHolidays = document.getElementById('highlightHolidaysToggle').checked;
+            renderRotaTable();
         }
         
         function formatDateRange(dateStr) {
@@ -3043,7 +3193,6 @@ END:VEVENT
         // Availability periods (admin-defined)
         let availabilityPeriods = {};
         let currentPeriod = null;
-        let schoolHolidays = {}; // weekKey -> holiday name
         
         // Pre-populated Cambridgeshire school holidays
         const DEFAULT_SCHOOL_HOLIDAYS = {
@@ -3068,14 +3217,10 @@ END:VEVENT
             '2027-02-15': 'February Half Term',
             '2027-03-29': 'Easter',
             '2027-04-05': 'Easter',
-            '2027-05-31': 'May Half Term',
-            '2027-07-19': 'Summer Holidays',
-            '2027-07-26': 'Summer Holidays',
-            '2027-08-02': 'Summer Holidays',
-            '2027-08-09': 'Summer Holidays',
-            '2027-08-16': 'Summer Holidays',
-            '2027-08-23': 'Summer Holidays'
+            '2027-05-31': 'May Half Term'
         };
+        
+        let schoolHolidays = JSON.parse(JSON.stringify(DEFAULT_SCHOOL_HOLIDAYS)); // Initialize with defaults
         
         function loadAvailabilityData() {
             try {
@@ -3148,6 +3293,14 @@ END:VEVENT
         // ============================================================
         // UK BANK HOLIDAYS
         // ============================================================
+        
+        // Format date as YYYY-MM-DD
+        function formatDateKey(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
         
         // Calculate UK bank holidays for a given year
         function getUKBankHolidays(year) {
@@ -3236,14 +3389,6 @@ END:VEVENT
             }
             
             return holidays;
-        }
-        
-        // Check if a date is a bank holiday
-        function isBankHoliday(dateKey) {
-            const date = new Date(dateKey);
-            const year = date.getFullYear();
-            const holidays = getUKBankHolidays(year);
-            return holidays.find(h => h.date === dateKey);
         }
         
         function populateAvailConsultantDropdown() {
@@ -3913,9 +4058,13 @@ END:VEVENT
             return holidays;
         }
         
-        // Check if a date is a bank holiday
+        // Check if a date is a bank holiday - returns { date, name } or null
         function isBankHoliday(dateKey) {
-            return UK_BANK_HOLIDAYS[dateKey] || bankHolidays[dateKey] || null;
+            const name = UK_BANK_HOLIDAYS[dateKey] || bankHolidays[dateKey] || null;
+            if (name) {
+                return { date: dateKey, name: name };
+            }
+            return null;
         }
         
         // Consultants with school-aged children (prefer school holiday allocation)
