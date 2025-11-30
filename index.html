@@ -1,0 +1,4061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICU Consultant Rota</title>
+    <style>
+        :root {
+            --primary: #0f766e;
+            --primary-light: #14b8a6;
+            --primary-dark: #0d9488;
+            --accent: #6366f1;
+            --bg-body: #f0fdfa;
+            --bg-card: #ffffff;
+            --bg-header: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%);
+            --border: #ccfbf1;
+            --border-dark: #99f6e4;
+            --text: #134e4a;
+            --text-light: #5eead4;
+            --text-muted: #64748b;
+            --highlight: #fef08a;
+            --highlight-border: #facc15;
+            --weekend: #fdf4ff;
+            --weekend-border: #f0abfc;
+            --rrt: #fef3c7;
+            --va: #dbeafe;
+            --admin: #fef2f2;
+            --admin-border: #fecaca;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-body);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+        
+        /* Header */
+        .header {
+            background: var(--bg-header);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(15, 118, 110, 0.3);
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+        
+        .admin-toggle {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        
+        .admin-toggle:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        
+        /* Admin Panel */
+        .admin-panel {
+            display: none;
+            background: var(--admin);
+            border: 2px solid var(--admin-border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .admin-panel.active {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .admin-panel h3 {
+            color: #991b1b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .admin-section {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--admin-border);
+        }
+        
+        .admin-section h4 {
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+            color: var(--text);
+        }
+        
+        .file-upload-area {
+            border: 2px dashed var(--border-dark);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-body);
+        }
+        
+        .file-upload-area:hover {
+            border-color: var(--primary);
+            background: white;
+        }
+        
+        .file-upload-area.dragover {
+            border-color: var(--primary);
+            background: white;
+        }
+        
+        .file-upload-area input[type="file"] {
+            display: none;
+        }
+        
+        .file-upload-area .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .file-upload-area p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        .upload-status {
+            margin-top: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.85rem;
+            display: none;
+        }
+        
+        .upload-status.success {
+            display: block;
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .upload-status.error {
+            display: block;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        /* Rota Selector */
+        .rota-selector {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .rota-selector-label {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text);
+        }
+        
+        .rota-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            flex: 1;
+        }
+        
+        .rota-chip {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border-dark);
+            border-radius: 2rem;
+            background: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .rota-chip:hover {
+            border-color: var(--primary);
+            background: var(--bg-body);
+        }
+        
+        .rota-chip.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .no-rotas-message {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        
+        /* Controls Panel */
+        .controls-panel {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+        
+        select {
+            padding: 0.6rem 2.5rem 0.6rem 1rem;
+            border: 2px solid var(--border-dark);
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%230f766e' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 0.75rem center;
+            appearance: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 180px;
+        }
+        
+        select:hover { border-color: var(--primary); }
+        select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15); }
+        select:disabled { background-color: #f1f5f9; cursor: not-allowed; }
+        
+        .btn {
+            padding: 0.6rem 1.25rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15, 118, 110, 0.3); }
+        
+        .btn-secondary {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .btn-secondary:hover:not(:disabled) { background: var(--bg-body); }
+        
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+        .btn-danger:hover:not(:disabled) { background: #b91c1c; }
+        
+        .btn-small {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        
+        .btn-icon {
+            width: 20px;
+            height: 20px;
+        }
+        
+        /* Password Input */
+        .password-input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .password-input-group input {
+            flex: 1;
+            padding: 0.6rem 1rem;
+            border: 2px solid var(--border-dark);
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .password-input-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: var(--bg-card);
+            padding: 0.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            background: transparent;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+        
+        .tab:hover { color: var(--primary); background: var(--bg-body); }
+        .tab.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3); }
+        .tab:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Tab Content */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Rota Table */
+        .rota-card {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+            padding: 1rem;
+            margin: 0 -0.25rem;
+        }
+        
+        .rota-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.85rem;
+        }
+        
+        .rota-table th, .rota-table td {
+            padding: 0.5rem 0.4rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        
+        .rota-table thead th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .rota-table thead th.weekend-header {
+            background: #7c3aed;
+        }
+        
+        .rota-table thead th.va-header {
+            background: #2563eb;
+        }
+        
+        .rota-table .day-header {
+            background: var(--bg-body);
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        .rota-table .day-header.weekend {
+            background: #faf5ff;
+            color: #7c3aed;
+        }
+        
+        .rota-table .week-date {
+            background: var(--bg-body);
+            font-weight: 700;
+            color: var(--primary);
+            white-space: nowrap;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+        }
+        
+        .rota-table .slot-type {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        
+        .rota-table .consultant-cell {
+            font-weight: 600;
+            transition: all 0.15s;
+            cursor: default;
+        }
+        
+        .rota-table .consultant-cell.highlighted {
+            background: var(--highlight) !important;
+            border-color: var(--highlight-border) !important;
+            box-shadow: inset 0 0 0 3px var(--highlight-border);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .rota-table .rrt-cell {
+            background: var(--rrt);
+        }
+        
+        .rota-table .va-cell {
+            background: var(--va);
+            font-weight: 700;
+            color: #1d4ed8;
+        }
+        
+        .rota-table .weekend-cell {
+            background: var(--weekend);
+        }
+        
+        /* Shifts Owed Table */
+        .owed-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.9rem;
+        }
+        
+        .owed-table th, .owed-table td {
+            padding: 0.75rem 1rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        
+        .owed-table thead th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .owed-table tbody tr:hover {
+            background: var(--bg-body);
+        }
+        
+        .owed-table .consultant-name {
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .owed-table .positive {
+            color: #059669;
+            font-weight: 600;
+        }
+        
+        .owed-table .negative {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .owed-table .total-cell {
+            background: var(--bg-body);
+            font-weight: 700;
+        }
+        
+        /* Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-body);
+            border-top: 1px solid var(--border);
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        /* Calendar Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+        
+        .modal-overlay.active { display: flex; }
+        
+        .modal {
+            background: white;
+            border-radius: 1rem;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            background: var(--bg-header);
+            color: white;
+            padding: 1.25rem 1.5rem;
+        }
+        
+        .modal-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .modal-body p {
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+        }
+        
+        .modal-body .shift-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .modal-body .shift-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .modal-body .shift-item:last-child { border-bottom: none; }
+        
+        .modal-body .shift-date { font-weight: 600; }
+        .modal-body .shift-type { color: var(--text-muted); font-size: 0.9rem; }
+        
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            background: var(--bg-body);
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+        
+        .empty-state .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .empty-state h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+        
+        /* Stored Rotas List */
+        .stored-rotas-list {
+            margin-top: 1rem;
+        }
+        
+        .stored-rota-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--bg-body);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stored-rota-item .rota-name {
+            font-weight: 600;
+        }
+        
+        .stored-rota-item .rota-date {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header { padding: 1.5rem 1rem; }
+            .header h1 { font-size: 1.5rem; }
+            .controls-panel { flex-direction: column; align-items: stretch; }
+            .control-group { justify-content: space-between; }
+            .tabs { flex-wrap: wrap; }
+            .tab { flex: 1 1 45%; }
+            .admin-toggle { position: static; margin-top: 1rem; }
+            .rota-selector { flex-direction: column; align-items: stretch; }
+        }
+        
+        /* Print Styles */
+        @media print {
+            .header { background: white !important; color: black !important; box-shadow: none; }
+            .controls-panel, .tabs, .legend, .admin-panel, .rota-selector, .admin-toggle { display: none !important; }
+            .rota-card { box-shadow: none; }
+            .rota-table th { background: #eee !important; color: black !important; }
+        }
+        
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .rota-card, .stat-card {
+            animation: fadeIn 0.4s ease-out;
+        }
+        
+        /* Availability Calendar Styles */
+        .availability-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .availability-login {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+        
+        .availability-login h3 {
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+        
+        .availability-login-form {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .availability-login-form select,
+        .availability-login-form input {
+            padding: 0.6rem 1rem;
+            border: 2px solid var(--border-dark);
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .logged-in-as {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .quarter-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .quarter-tab {
+            padding: 0.5rem 1.25rem;
+            border: 2px solid var(--border-dark);
+            border-radius: 0.5rem;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .quarter-tab:hover {
+            border-color: var(--primary);
+        }
+        
+        .quarter-tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .availability-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.8rem;
+        }
+        
+        .availability-table th,
+        .availability-table td {
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.3rem;
+            text-align: center;
+        }
+        
+        .availability-table thead th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .availability-table thead th.week-header {
+            min-width: 70px;
+        }
+        
+        .availability-table .shift-type-cell {
+            background: var(--bg-body);
+            font-weight: 600;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+        }
+        
+        .availability-table .week-start-cell {
+            background: var(--primary-dark);
+            color: white;
+            font-weight: 700;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+        }
+        
+        .avail-cell {
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            width: 36px;
+            min-width: 36px;
+            max-width: 36px;
+            height: 28px;
+            min-height: 28px;
+            max-height: 28px;
+            font-size: 1rem;
+            text-align: center;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+        
+        .avail-cell:hover {
+            background: var(--bg-body);
+        }
+        
+        .avail-cell.readonly {
+            cursor: default;
+        }
+        
+        .avail-cell.readonly:hover {
+            background: inherit;
+        }
+        
+        .avail-cell.blank {
+            background: white;
+            color: transparent;
+        }
+        
+        .avail-cell.blank::after {
+            content: '\00a0';
+        }
+        
+        .avail-cell.unavailable {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .avail-cell.preferred {
+            background: #d1fae5;
+            color: #059669;
+        }
+        
+        .avail-cell.not_applicable {
+            background: #f1f5f9;
+            color: #94a3b8;
+        }
+        
+        /* School holiday row highlighting */
+        .availability-table tr.school-holiday td {
+            border-top: 2px solid #f59e0b;
+            border-bottom: 2px solid #f59e0b;
+        }
+        
+        .availability-table tr.school-holiday td:first-child {
+            border-left: 2px solid #f59e0b;
+        }
+        
+        .availability-table tr.school-holiday td:last-child {
+            border-right: 2px solid #f59e0b;
+        }
+        
+        .holiday-indicator {
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 0.65rem;
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.25rem;
+            margin-left: 0.25rem;
+            font-weight: 600;
+        }
+        
+        .week-row-header {
+            background: var(--bg-body);
+            font-weight: 600;
+            text-align: left !important;
+            padding-left: 0.75rem !important;
+            white-space: nowrap;
+        }
+        
+        .shift-type-header {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            min-width: 36px;
+        }
+        
+        .consultant-col-header {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            writing-mode: horizontal-tb;
+            min-width: 36px;
+        }
+        
+        /* Holiday management in admin */
+        .holiday-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .holiday-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        
+        .holiday-item:last-child {
+            border-bottom: none;
+        }
+        
+        .holiday-week {
+            font-weight: 600;
+        }
+        
+        .holiday-name {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        
+        .avail-cell-select {
+            width: 100%;
+            padding: 0.2rem;
+            border: none;
+            background: transparent;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+        }
+        
+        .avail-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-body);
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .avail-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .avail-legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        
+        .avail-legend-color.available { background: #d1fae5; }
+        .avail-legend-color.unavailable { background: #fee2e2; }
+        .avail-legend-color.preferred { background: #dbeafe; }
+        .avail-legend-color.not_applicable { background: #f1f5f9; }
+        
+        .export-section {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--bg-body);
+            border-radius: 0.5rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        /* Main Sections */
+        .main-section {
+            display: none;
+        }
+        
+        .main-section.active {
+            display: block;
+        }
+        
+        /* Availability Sub-sections */
+        .avail-sub-section {
+            display: none;
+        }
+        
+        .avail-sub-section.active {
+            display: block;
+        }
+        
+        /* Theatre Table */
+        .theatre-slot {
+            cursor: pointer;
+            padding: 0.4rem;
+            height: 32px;
+            min-height: 32px;
+            max-height: 32px;
+            min-width: 80px;
+            transition: background 0.15s, color 0.15s;
+            font-size: 0.8rem;
+            text-align: center;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+        
+        .theatre-slot:hover {
+            background: #f0fdf4 !important;
+        }
+        
+        .theatre-slot.booked {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .theatre-slot.my-booking {
+            background: #d1fae5;
+            color: #065f46;
+            font-weight: 600;
+        }
+        
+        .theatre-slot.weekend {
+            background: #f1f5f9;
+            color: #94a3b8;
+            cursor: default;
+        }
+        
+        .theatre-slot.weekend:hover {
+            background: #f1f5f9 !important;
+        }
+        
+        .theatre-weekend-row {
+            background: #f8fafc;
+        }
+        
+        .theatre-day-header.weekend {
+            color: #64748b;
+            font-style: italic;
+        }
+        
+        .theatre-slot:empty::after {
+            content: '\00a0';
+        }
+        
+        .theatre-slot.icu-blocked {
+            background: #fee2e2;
+            color: #dc2626;
+            cursor: not-allowed;
+            font-size: 0.7rem;
+        }
+        
+        .theatre-slot.icu-blocked:hover {
+            background: #fee2e2 !important;
+        }
+        
+        .theatre-slot.lieu-day {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .theatre-slot.va-day {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+        
+        .theatre-day-header {
+            font-weight: 600;
+            background: var(--bg-body);
+            white-space: nowrap;
+            height: 32px;
+        }
+        
+        .theatre-date-cell {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        
+        .theatre-icu-cell {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-align: center;
+            min-width: 60px;
+        }
+        
+        .theatre-icu-cell.has-icu {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .lieu-va-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.2rem 0.5rem;
+            background: var(--bg-body);
+            border: 1px solid var(--border);
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            margin: 0.15rem;
+        }
+        
+        .lieu-va-tag .remove-btn {
+            cursor: pointer;
+            color: #dc2626;
+            font-weight: bold;
+        }
+        
+        .lieu-va-tag .remove-btn:hover {
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🏥 ICU Consultant Rota</h1>
+        <p id="rotaPeriod">Select a section below</p>
+        <button class="admin-toggle" onclick="toggleAdminPanel()">⚙️ Admin</button>
+        <div id="syncStatus" style="position: absolute; top: 1rem; left: 1rem; font-size: 0.8rem; opacity: 0.9;">☁️ Online</div>
+    </header>
+    
+    <div class="container">
+        <!-- Admin Panel (Hidden by default) -->
+        <div class="admin-panel" id="adminPanel">
+            <h3>🔐 Admin Panel</h3>
+            
+            <div id="adminLoginSection">
+                <div class="password-input-group">
+                    <input type="password" id="adminPassword" placeholder="Enter admin password..." onkeypress="if(event.key==='Enter')checkPassword()">
+                    <button class="btn btn-primary" onclick="checkPassword()">Unlock</button>
+                </div>
+            </div>
+            
+            <div id="adminContent" style="display: none;">
+                <div class="admin-grid">
+                    <div class="admin-section">
+                        <h4>📤 Upload Rota CSV</h4>
+                        <div class="file-upload-area" id="rotaUploadArea" onclick="document.getElementById('rotaFileInput').click()">
+                            <input type="file" id="rotaFileInput" accept=".csv" onchange="handleRotaUpload(event)">
+                            <div class="upload-icon">📄</div>
+                            <p>Click or drag rota.csv here</p>
+                        </div>
+                        <div class="upload-status" id="rotaUploadStatus"></div>
+                        
+                        <div style="margin-top: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Rota Name:</label>
+                            <input type="text" id="rotaName" placeholder="e.g., Feb-May 2026" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border-dark); border-radius: 0.5rem;">
+                        </div>
+                    </div>
+                    
+                    <div class="admin-section">
+                        <h4>📊 Upload Shifts Owed CSV</h4>
+                        <div class="file-upload-area" id="owedUploadArea" onclick="document.getElementById('owedFileInput').click()">
+                            <input type="file" id="owedFileInput" accept=".csv" onchange="handleOwedUpload(event)">
+                            <div class="upload-icon">📄</div>
+                            <p>Click or drag shifts_owed.csv here</p>
+                        </div>
+                        <div class="upload-status" id="owedUploadStatus"></div>
+                    </div>
+                    
+                    <div class="admin-section">
+                        <h4>💾 Saved Rotas</h4>
+                        <div class="stored-rotas-list" id="storedRotasList">
+                            <!-- Populated by JS -->
+                        </div>
+                        <button class="btn btn-primary btn-small" style="margin-top: 1rem; width: 100%;" onclick="saveCurrentRota()">
+                            Save Current Rota
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Availability Admin Section -->
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--admin-border);">
+                    <h4 style="margin-bottom: 1rem;">🗓️ Availability Settings</h4>
+                    <div class="admin-grid">
+                        <div class="admin-section">
+                            <h4>Add Availability Period</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <input type="text" id="periodName" placeholder="Period name (e.g., Feb-Apr 2026)" style="padding: 0.5rem; border: 2px solid var(--border-dark); border-radius: 0.5rem;">
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <div style="flex: 1;">
+                                        <label style="font-size: 0.8rem; color: var(--text-muted);">Start Date (Monday)</label>
+                                        <input type="date" id="periodStart" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border-dark); border-radius: 0.5rem;">
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <label style="font-size: 0.8rem; color: var(--text-muted);">End Date</label>
+                                        <input type="date" id="periodEnd" style="width: 100%; padding: 0.5rem; border: 2px solid var(--border-dark); border-radius: 0.5rem;">
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary btn-small" onclick="addAvailabilityPeriod()">Add Period</button>
+                            </div>
+                            <div id="savedPeriodsList" class="stored-rotas-list" style="margin-top: 1rem;">
+                                <p style="color: var(--text-muted); font-size: 0.9rem;">No periods configured yet.</p>
+                            </div>
+                        </div>
+                        <div class="admin-section">
+                            <h4>🏖️ Mark School Holidays</h4>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                                Select weeks to highlight as school holidays
+                            </p>
+                            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <select id="holidayWeekSelect" style="flex: 1; padding: 0.5rem; border: 2px solid var(--border-dark); border-radius: 0.5rem;">
+                                    <option value="">-- Select Week --</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" id="holidayName" placeholder="Holiday name (e.g., Half Term)" style="flex: 1; padding: 0.5rem; border: 2px solid var(--border-dark); border-radius: 0.5rem;">
+                                <button class="btn btn-primary btn-small" onclick="addSchoolHoliday()">Add</button>
+                            </div>
+                            <div class="holiday-list" id="holidayList">
+                                <p style="padding: 0.75rem; color: var(--text-muted); font-size: 0.85rem;">No holidays marked.</p>
+                            </div>
+                        </div>
+                        <div class="admin-section">
+                            <h4>📥 Export Data</h4>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                                Download availability data for rota generator
+                            </p>
+                            <button class="btn btn-primary btn-small" onclick="exportAvailabilityCSV()" style="width: 100%; margin-bottom: 0.5rem;">📥 Export ICU/VA Availability CSV</button>
+                            <button class="btn btn-primary btn-small" onclick="exportTheatreCSV()" style="width: 100%;">🎭 Export Theatre Availability CSV</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1rem; text-align: right;">
+                    <button class="btn btn-secondary btn-small" onclick="lockAdmin()">🔒 Lock Admin</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Section Tabs -->
+        <div class="tabs" id="mainTabs" style="margin-bottom: 1.5rem;">
+            <button class="tab active" onclick="switchMainSection('rota-section', event)">📅 Rota</button>
+            <button class="tab" onclick="switchMainSection('availability-section', event)">🗓️ Availability</button>
+        </div>
+        
+        <!-- ROTA SECTION -->
+        <div id="rota-section" class="main-section active">
+            <!-- Rota Selector -->
+            <div class="rota-selector">
+                <span class="rota-selector-label">📅 Select Rota:</span>
+                <div class="rota-chips" id="rotaChips">
+                    <span class="no-rotas-message" id="noRotasMessage">No rotas available. Admin can upload rotas.</span>
+                </div>
+            </div>
+            
+            <!-- Controls -->
+            <div class="controls-panel" id="controlsPanel" style="display: none;">
+                <div class="control-group">
+                    <label for="consultantSelect">Highlight Consultant:</label>
+                    <select id="consultantSelect">
+                        <option value="">-- All Consultants --</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <button class="btn btn-primary" onclick="downloadCalendar()" id="calendarBtn" disabled>
+                        <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        Download Calendar
+                    </button>
+                    <button class="btn btn-secondary" onclick="window.print()">
+                        <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                        </svg>
+                        Print
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Rota Sub-Tabs -->
+            <div class="tabs" id="tabsContainer" style="display: none;">
+                <button class="tab active" onclick="switchTab('rota', event)" id="rotaTab">📅 Weekly Rota</button>
+                <button class="tab" onclick="switchTab('shifts', event)" id="shiftsTab">📊 Rolling Shift Balance</button>
+                <button class="tab" onclick="switchTab('my-shifts', event)" id="myShiftsTab">👤 My Shifts</button>
+            </div>
+            
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState">
+                <div class="empty-icon">📋</div>
+                <h3>No Rota Selected</h3>
+                <p>Select a rota from the options above to view the schedule.</p>
+            </div>
+            
+            <!-- Rota Tab -->
+            <div id="rota-tab" class="tab-content">
+                <div class="rota-card">
+                    <div class="table-wrapper">
+                        <table class="rota-table" id="rotaTable">
+                            <!-- Table will be populated by JavaScript -->
+                        </table>
+                    </div>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ffffff;"></div>
+                            <span>Weekday Day (SW)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: var(--weekend);"></div>
+                            <span>Weekend Day (WE)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: var(--rrt);"></div>
+                            <span>RRT</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: var(--va);"></div>
+                            <span>Vascular Access (VA)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: var(--highlight); border-color: var(--highlight-border);"></div>
+                            <span>Your Shifts</span>
+                        </div>
+                    </div>
+            </div>
+        </div>
+        
+        <!-- Shifts Balance Tab -->
+        <div id="shifts-tab" class="tab-content">
+            <div class="rota-card">
+                <div class="table-wrapper">
+                    <table class="owed-table" id="owedTable">
+                        <!-- Table will be populated by JavaScript -->
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- My Shifts Tab -->
+        <div id="my-shifts-tab" class="tab-content">
+            <div id="myShiftsContent">
+                <p style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                    Select a consultant from the dropdown above to view their shifts.
+                </p>
+            </div>
+        </div>
+        
+        </div> <!-- End of rota-section -->
+        
+        <!-- AVAILABILITY SECTION (separate from rota) -->
+        <div id="availability-section" class="main-section">
+            <div class="availability-login" id="availLoginSection">
+                <h3>🔐 Login to Edit Your Availability</h3>
+                <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;">
+                    Everyone can view all availability. Log in to edit your own entries.
+                </p>
+                <div class="availability-login-form">
+                    <select id="availConsultantSelect">
+                        <option value="">-- Select Your Name --</option>
+                    </select>
+                    <input type="password" id="availPassword" placeholder="Your password" onkeypress="if(event.key==='Enter')loginAvailability()">
+                    <button class="btn btn-primary" onclick="loginAvailability()">Login</button>
+                </div>
+            </div>
+            
+            <div id="availLoggedInSection" style="display: none;">
+                <div class="availability-login" style="background: #d1fae5; border: 2px solid #10b981;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                        <div class="logged-in-as">
+                            ✓ Logged in as: <span id="loggedInName"></span>
+                        </div>
+                        <button class="btn btn-primary btn-small" onclick="logoutAvailability()">💾 Save & Exit</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sub-tabs for Availability Section -->
+            <div class="tabs" id="availSubTabs" style="margin-bottom: 1rem;">
+                <button class="tab active" onclick="switchAvailSubTab('rota-avail', event)">📅 ICU/VA Availability</button>
+                <button class="tab" onclick="switchAvailSubTab('theatre-avail', event)">🎭 Theatre Availability</button>
+            </div>
+            
+            <!-- Rota Availability Sub-section -->
+            <div id="rota-avail-section" class="avail-sub-section active">
+                <div class="rota-card">
+                    <div style="padding: 1rem; border-bottom: 1px solid var(--border);">
+                        <div class="availability-header">
+                            <h2 style="margin: 0; font-size: 1.1rem;">🗓️ ICU/VA Availability Requests</h2>
+                            <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0.5rem 0 0 0;">
+                                Click cells: blank (available) → ✗ (unavailable) → ✓ (preferred) → blank
+                            </p>
+                            <div class="quarter-tabs" id="periodTabs">
+                                <span style="color: var(--text-muted); font-style: italic;" id="noPeriodsMsg">No periods configured. Admin can add periods.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-wrapper" id="availTableWrapper">
+                        <div id="noPeriodSelected" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                            Select a period above to view/edit availability.
+                        </div>
+                        <table class="availability-table" id="availabilityTable" style="display: none;">
+                            <!-- Table will be populated by JS -->
+                        </table>
+                    </div>
+                    <div class="avail-legend">
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color" style="background: white; border: 1px solid #e2e8f0;"></div>
+                            <span>Available (default)</span>
+                        </div>
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color unavailable"></div>
+                            <span>✗ Not Available</span>
+                        </div>
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color preferred"></div>
+                            <span>✓ Preferred</span>
+                        </div>
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color not_applicable"></div>
+                            <span>- N/A (not eligible)</span>
+                        </div>
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color" style="background: #fef3c7; border: 2px solid #f59e0b;"></div>
+                            <span>School Holiday</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Theatre Availability Sub-section -->
+            <div id="theatre-avail-section" class="avail-sub-section" style="display: none;">
+                <div class="rota-card" style="margin-bottom: 1rem;">
+                    <div style="padding: 1rem; border-bottom: 1px solid var(--border);">
+                        <div class="availability-header">
+                            <h2 style="margin: 0; font-size: 1.1rem;">🎭 Theatre Availability</h2>
+                            <div class="quarter-tabs" id="theatrePeriodTabs">
+                                <span style="color: var(--text-muted); font-style: italic;">Select a period</span>
+                            </div>
+                        </div>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">
+                            Click a slot to book your theatre session (one per day). Days with ICU commitments (red) cannot be selected.
+                        </p>
+                        <div style="margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <label style="font-size: 0.85rem; color: var(--text-muted);">View ICU pattern for:</label>
+                            <select id="theatreViewConsultant" onchange="changeTheatreViewConsultant()" style="padding: 0.3rem 0.5rem; border: 1px solid var(--border-dark); border-radius: 0.25rem; font-size: 0.85rem;">
+                                <option value="">-- Select consultant --</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Lieu Days and VA Days Entry -->
+                    <div id="theatreExtrasPanel" style="padding: 1rem; background: var(--bg-body); border-bottom: 1px solid var(--border); display: none;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">🏖️ Lieu Days (Holidays Worked on ICU)</h4>
+                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                                    These reduce your theatre session count
+                                </p>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <input type="date" id="lieuDateInput" style="flex: 1; padding: 0.4rem; border: 1px solid var(--border-dark); border-radius: 0.25rem;">
+                                    <button class="btn btn-primary btn-small" onclick="addLieuDay()">Add</button>
+                                </div>
+                                <div id="lieuDaysList" style="margin-top: 0.5rem; max-height: 100px; overflow-y: auto;">
+                                </div>
+                            </div>
+                            <div id="vaDaysSection">
+                                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">💉 VA Days (Vascular Access)</h4>
+                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                                    Auto-populated from rota (AJ, JV, KA only)
+                                </p>
+                                <div id="vaInputSection" style="display: flex; gap: 0.5rem;">
+                                    <input type="date" id="vaDateInput" style="flex: 1; padding: 0.4rem; border: 1px solid var(--border-dark); border-radius: 0.25rem;">
+                                    <button class="btn btn-primary btn-small" onclick="addVADay()">Add</button>
+                                </div>
+                                <div id="vaNotEligible" style="display: none; padding: 0.5rem; background: #f1f5f9; border-radius: 0.25rem; font-size: 0.8rem; color: var(--text-muted);">
+                                    Only AJ, JV, and KA can add VA days
+                                </div>
+                                <div id="vaDaysList" style="margin-top: 0.5rem; max-height: 100px; overflow-y: auto;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-wrapper">
+                        <table class="availability-table" id="theatreTable">
+                            <!-- Table will be populated by JS -->
+                        </table>
+                    </div>
+                    
+                    <!-- Totals Summary -->
+                    <div id="theatreTotals" style="padding: 1rem; background: var(--bg-body); border-top: 1px solid var(--border);">
+                        <h4 style="margin: 0 0 0.75rem 0; font-size: 0.95rem;">📊 Summary Totals</h4>
+                        <div class="table-wrapper">
+                            <table class="availability-table" id="theatreTotalsTable">
+                                <!-- Populated by JS -->
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="avail-legend">
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color" style="background: white; border: 1px solid #e2e8f0;"></div>
+                            <span>Available slot</span>
+                        </div>
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color" style="background: #dbeafe;"></div>
+                            <span>Booked slot</span>
+                        </div>
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color" style="background: #d1fae5;"></div>
+                            <span>Your booking</span>
+                        </div>
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color" style="background: #fee2e2;"></div>
+                            <span>ICU commitment (blocked)</span>
+                        </div>
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color" style="background: #fef3c7;"></div>
+                            <span>Lieu day</span>
+                        </div>
+                        <div class="avail-legend-item">
+                            <div class="avail-legend-color" style="background: #e0e7ff;"></div>
+                            <span>VA day</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div> <!-- End of availability-section -->
+    </div>
+    
+    <!-- Calendar Modal -->
+    <div class="modal-overlay" id="calendarModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📅 Download Calendar</h2>
+            </div>
+            <div class="modal-body">
+                <p>Download your shifts as an iCal file (.ics) to add to macOS Calendar, Outlook, or Google Calendar.</p>
+                <div class="shift-list" id="shiftPreview">
+                    <!-- Preview will be populated -->
+                </div>
+                <p style="font-size: 0.85rem;"><strong>Tip:</strong> Double-click the downloaded .ics file to add it to your calendar.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmDownload()">Download .ics</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ============================================================
+        // GOOGLE SHEETS API CONFIGURATION
+        // ============================================================
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyc4tGJXeBnkv9oe8CTOXK1anPckJT69lXTW7XpZrb5smMH6m2poGfIhffj8MEw3CRbQg/exec';
+        
+        // Counter for unique callback names
+        let jsonpCounter = 0;
+        
+        // API helper function using JSONP to avoid CORS issues
+        function apiCall(action, params = {}) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'jsonpCallback_' + (++jsonpCounter) + '_' + Date.now();
+                
+                // Create the callback function
+                window[callbackName] = function(data) {
+                    // Clean up
+                    delete window[callbackName];
+                    const script = document.getElementById(callbackName);
+                    if (script) script.remove();
+                    
+                    if (data.error) {
+                        console.error('API Error:', data.error);
+                        showSyncStatus('error');
+                        resolve(null);
+                    } else {
+                        showSyncStatus('synced');
+                        resolve(data);
+                    }
+                };
+                
+                // Build URL with parameters
+                const url = new URL(GOOGLE_SCRIPT_URL);
+                url.searchParams.append('action', action);
+                url.searchParams.append('callback', callbackName);
+                
+                // Add other params
+                Object.entries(params).forEach(([key, value]) => {
+                    if (typeof value === 'object') {
+                        url.searchParams.append(key, JSON.stringify(value));
+                    } else {
+                        url.searchParams.append(key, value);
+                    }
+                });
+                
+                showSyncStatus('syncing');
+                
+                // Create script tag for JSONP
+                const script = document.createElement('script');
+                script.id = callbackName;
+                script.src = url.toString();
+                script.onerror = function() {
+                    delete window[callbackName];
+                    script.remove();
+                    console.error('JSONP request failed');
+                    showSyncStatus('error');
+                    resolve(null);
+                };
+                
+                // Set timeout
+                setTimeout(() => {
+                    if (window[callbackName]) {
+                        delete window[callbackName];
+                        const s = document.getElementById(callbackName);
+                        if (s) s.remove();
+                        console.error('API timeout');
+                        showSyncStatus('error');
+                        resolve(null);
+                    }
+                }, 30000); // 30 second timeout
+                
+                document.head.appendChild(script);
+            });
+        }
+        
+        // Sync status indicator
+        function showSyncStatus(status) {
+            const indicator = document.getElementById('syncStatus');
+            if (!indicator) return;
+            
+            switch(status) {
+                case 'syncing':
+                    indicator.innerHTML = '🔄 Syncing...';
+                    indicator.style.color = '#fef3c7';
+                    break;
+                case 'synced':
+                    indicator.innerHTML = '✓ Synced';
+                    indicator.style.color = '#bbf7d0';
+                    setTimeout(() => {
+                        indicator.innerHTML = '☁️ Online';
+                        indicator.style.color = 'rgba(255,255,255,0.8)';
+                    }, 2000);
+                    break;
+                case 'error':
+                    indicator.innerHTML = '⚠️ Sync Error';
+                    indicator.style.color = '#fecaca';
+                    break;
+                case 'offline':
+                    indicator.innerHTML = '📴 Offline';
+                    indicator.style.color = 'rgba(255,255,255,0.6)';
+                    break;
+            }
+        }
+        
+        // ============================================================
+        // CONFIGURATION
+        // ============================================================
+        const ADMIN_PASSWORD = 'icu2026';  // Change this to your desired password
+        
+        // Consultant passwords
+        const CONSULTANT_PASSWORDS = {
+            'AJ': 'AJ473',
+            'VN': 'VN829',
+            'PB': 'PB156',
+            'JP': 'JP642',
+            'RM': 'RM385',
+            'MT': 'MT917',
+            'JV': 'JV264',
+            'JM': 'JM538',
+            'SF': 'SF791',
+            'MG': 'MG423',
+            'PF': 'PF186',
+            'CS': 'CS659',
+            'ACM': 'ACM367',
+            'KP': 'KP842',
+            'IG': 'IG195',
+            'MK': 'MK574',
+            'CH': 'CH438',
+            'SS': 'SS926',
+            'KA': 'KA713',
+            'VB': 'VB351'
+        };
+        
+        // ============================================================
+        // STATE
+        // ============================================================
+        let isAdminUnlocked = false;
+        let selectedConsultant = '';
+        let currentTab = 'rota';
+        let currentRotaData = null;
+        let currentShiftsOwed = null;
+        let storedRotas = {};
+        let pendingRotaData = null;
+        let pendingShiftsOwed = null;
+        
+        // Availability state
+        let loggedInConsultant = null;
+        let availabilityData = {};
+        let activeEditor = null;
+        
+        // ============================================================
+        // INITIALIZATION
+        // ============================================================
+        async function init() {
+            // Show loading state
+            showSyncStatus('syncing');
+            
+            // Load data from Google Sheets
+            await loadAllDataFromCloud();
+            
+            renderRotaChips();
+            setupDragAndDrop();
+            renderPeriodTabs();
+            renderSavedPeriodsList();
+            renderHolidayList();
+            populateAvailConsultantDropdown();
+            
+            document.getElementById('consultantSelect').addEventListener('change', function() {
+                selectedConsultant = this.value;
+                highlightShifts();
+                renderMyShifts();
+                document.getElementById('calendarBtn').disabled = !selectedConsultant;
+            });
+            
+            showSyncStatus('synced');
+        }
+        
+        // Load all data from Google Sheets
+        async function loadAllDataFromCloud() {
+            try {
+                // Load rotas
+                const rotasResult = await apiCall('getRotas');
+                if (rotasResult && rotasResult.rotas) {
+                    storedRotas = rotasResult.rotas;
+                }
+                
+                // Load config (periods, holidays, shifts owed)
+                const configResult = await apiCall('getConfig');
+                if (configResult && configResult.config) {
+                    if (configResult.config.availabilityPeriods) {
+                        availabilityPeriods = configResult.config.availabilityPeriods;
+                    }
+                    if (configResult.config.schoolHolidays) {
+                        schoolHolidays = configResult.config.schoolHolidays;
+                    }
+                    if (configResult.config.shiftsOwed) {
+                        currentShiftsOwed = configResult.config.shiftsOwed;
+                        renderShiftsOwedTable();
+                    }
+                }
+                
+                // Load theatre bookings
+                const theatreResult = await apiCall('getTheatreBookings');
+                if (theatreResult && theatreResult.bookings) {
+                    theatreBookings = theatreResult.bookings;
+                }
+                
+                // Load lieu days
+                const lieuResult = await apiCall('getLieuDays');
+                if (lieuResult && lieuResult.lieuDays) {
+                    lieuDays = lieuResult.lieuDays;
+                }
+                
+                // Load VA days
+                const vaResult = await apiCall('getVADays');
+                if (vaResult && vaResult.vaDays) {
+                    vaDays = vaResult.vaDays;
+                }
+                
+                // Load availability
+                const availResult = await apiCall('getAvailability');
+                if (availResult && availResult.availability) {
+                    availabilityData = availResult.availability;
+                }
+                
+            } catch (error) {
+                console.error('Error loading data from cloud:', error);
+                showSyncStatus('error');
+            }
+        }
+        
+        // ============================================================
+        // MAIN SECTION SWITCHING
+        // ============================================================
+        function switchMainSection(sectionId, event) {
+            // Update main tabs
+            document.querySelectorAll('#mainTabs .tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update main sections
+            document.querySelectorAll('.main-section').forEach(section => section.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            
+            // Update header text
+            if (sectionId === 'rota-section') {
+                document.getElementById('rotaPeriod').textContent = currentRotaData ? 'Viewing rota' : 'Select a rota to view';
+            } else {
+                document.getElementById('rotaPeriod').textContent = 'Submit your availability requests';
+            }
+            
+            // If switching to availability, render it
+            if (sectionId === 'availability-section') {
+                renderPeriodTabs();
+                renderTheatrePeriodTabs();
+                updateHolidayWeekSelect();
+                if (currentPeriod && availabilityPeriods[currentPeriod]) {
+                    renderAvailabilityTable();
+                    renderTheatreTable();
+                }
+            }
+        }
+        
+        function loadStoredRotas() {
+            try {
+                const stored = localStorage.getItem('icuRotas');
+                if (stored) {
+                    storedRotas = JSON.parse(stored);
+                }
+            } catch (e) {
+                console.error('Error loading stored rotas:', e);
+                storedRotas = {};
+            }
+        }
+        
+        // Save rotas to Google Sheets (called after modifying storedRotas)
+        async function saveRotaToCloud(rotaName) {
+            if (!storedRotas[rotaName]) return;
+            
+            await apiCall('saveRota', {
+                data: {
+                    name: rotaName,
+                    rotaData: storedRotas[rotaName].rotaData,
+                    uploadedBy: 'admin'
+                }
+            });
+        }
+        
+        async function deleteRotaFromCloud(rotaName) {
+            await apiCall('deleteRota', { name: rotaName });
+        }
+        
+        function saveStoredRotas() {
+            // Legacy function - now saves happen individually via saveRotaToCloud
+            // Keep localStorage as backup
+            try {
+                localStorage.setItem('icuRotas', JSON.stringify(storedRotas));
+            } catch (e) {
+                console.error('Error saving rotas:', e);
+            }
+        }
+        
+        // ============================================================
+        // ADMIN PANEL
+        // ============================================================
+        function toggleAdminPanel() {
+            const panel = document.getElementById('adminPanel');
+            panel.classList.toggle('active');
+        }
+        
+        function checkPassword() {
+            const password = document.getElementById('adminPassword').value;
+            if (password === ADMIN_PASSWORD) {
+                isAdminUnlocked = true;
+                document.getElementById('adminLoginSection').style.display = 'none';
+                document.getElementById('adminContent').style.display = 'block';
+                renderStoredRotasList();
+                renderSavedPeriodsList();
+                renderHolidayList();
+                updateHolidayWeekSelect();
+            } else {
+                alert('Incorrect password');
+            }
+        }
+        
+        function lockAdmin() {
+            isAdminUnlocked = false;
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('adminLoginSection').style.display = 'block';
+            document.getElementById('adminContent').style.display = 'none';
+        }
+        
+        // ============================================================
+        // FILE UPLOAD
+        // ============================================================
+        function setupDragAndDrop() {
+            ['rotaUploadArea', 'owedUploadArea'].forEach(areaId => {
+                const area = document.getElementById(areaId);
+                
+                area.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    area.classList.add('dragover');
+                });
+                
+                area.addEventListener('dragleave', () => {
+                    area.classList.remove('dragover');
+                });
+                
+                area.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    area.classList.remove('dragover');
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.name.endsWith('.csv')) {
+                        if (areaId === 'rotaUploadArea') {
+                            processRotaFile(file);
+                        } else {
+                            processOwedFile(file);
+                        }
+                    }
+                });
+            });
+        }
+        
+        function handleRotaUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processRotaFile(file);
+            }
+        }
+        
+        function handleOwedUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processOwedFile(file);
+            }
+        }
+        
+        function processRotaFile(file) {
+            const reader = new FileReader();
+            const statusEl = document.getElementById('rotaUploadStatus');
+            
+            reader.onload = function(e) {
+                try {
+                    const csv = e.target.result;
+                    pendingRotaData = parseRotaCSV(csv);
+                    statusEl.textContent = `✓ Loaded ${pendingRotaData.length} weeks of rota data`;
+                    statusEl.className = 'upload-status success';
+                } catch (err) {
+                    statusEl.textContent = `✗ Error: ${err.message}`;
+                    statusEl.className = 'upload-status error';
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+        
+        function processOwedFile(file) {
+            const reader = new FileReader();
+            const statusEl = document.getElementById('owedUploadStatus');
+            
+            reader.onload = function(e) {
+                try {
+                    const csv = e.target.result;
+                    pendingShiftsOwed = parseOwedCSV(csv);
+                    statusEl.textContent = `✓ Loaded shifts owed for ${pendingShiftsOwed.length} consultants`;
+                    statusEl.className = 'upload-status success';
+                } catch (err) {
+                    statusEl.textContent = `✗ Error: ${err.message}`;
+                    statusEl.className = 'upload-status error';
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+        
+        // ============================================================
+        // CSV PARSING
+        // ============================================================
+        function parseRotaCSV(csv) {
+            const lines = csv.split('\n').map(line => line.split(','));
+            const rotaData = [];
+            
+            // Find data rows (rows with dates in DD/MM/YYYY format)
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line[0] && /^\d{2}\/\d{2}\/\d{4}$/.test(line[0].trim())) {
+                    const weekStart = line[0].trim();
+                    
+                    // Extract consultants from the row
+                    // Format: Date, Mon(D1,D2,D3,RRT), Tue(D1,D2,D3,RRT), etc.
+                    const week = {
+                        weekStart: weekStart,
+                        days: {
+                            monday: { d1: line[1]?.trim() || '', d2: line[2]?.trim() || '', d3: line[3]?.trim() || '', rrt: line[4]?.trim() || '' },
+                            tuesday: { d1: line[5]?.trim() || '', d2: line[6]?.trim() || '', d3: line[7]?.trim() || '', rrt: line[8]?.trim() || '' },
+                            wednesday: { d1: line[9]?.trim() || '', d2: line[10]?.trim() || '', d3: line[11]?.trim() || '', rrt: line[12]?.trim() || '' },
+                            thursday: { d1: line[13]?.trim() || '', d2: line[14]?.trim() || '', d3: line[15]?.trim() || '', rrt: line[16]?.trim() || '' },
+                            friday: { d1: line[17]?.trim() || '', d2: line[18]?.trim() || '', d3: line[19]?.trim() || '', rrt: line[20]?.trim() || '' },
+                            saturday: { d1: line[21]?.trim() || '', d2: line[22]?.trim() || '', d3: line[23]?.trim() || '', rrt: line[24]?.trim() || '' },
+                            sunday: { d1: line[25]?.trim() || '', d2: line[26]?.trim() || '', d3: line[27]?.trim() || '', rrt: line[28]?.trim() || '' }
+                        },
+                        va: line[30]?.trim() || ''
+                    };
+                    
+                    rotaData.push(week);
+                }
+            }
+            
+            if (rotaData.length === 0) {
+                throw new Error('No valid rota data found in CSV');
+            }
+            
+            return rotaData;
+        }
+        
+        function parseOwedCSV(csv) {
+            const lines = csv.split('\n');
+            const owedData = [];
+            
+            // Skip header row
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(',');
+                if (cols[0] && cols[0].trim()) {
+                    owedData.push({
+                        initials: cols[0].trim(),
+                        name: cols[1]?.trim() || '',
+                        sw: parseFloat(cols[2]) || 0,
+                        mw: parseFloat(cols[3]) || 0,
+                        tt: parseFloat(cols[4]) || 0,
+                        we: parseFloat(cols[5]) || 0,
+                        fs: parseFloat(cols[6]) || 0,
+                        s: parseFloat(cols[7]) || 0,
+                        total: parseFloat(cols[8]) || 0
+                    });
+                }
+            }
+            
+            return owedData;
+        }
+        
+        // ============================================================
+        // ROTA STORAGE
+        // ============================================================
+        function saveCurrentRota() {
+            const name = document.getElementById('rotaName').value.trim();
+            
+            if (!name) {
+                alert('Please enter a name for this rota');
+                return;
+            }
+            
+            if (!pendingRotaData) {
+                alert('Please upload a rota CSV first');
+                return;
+            }
+            
+            storedRotas[name] = {
+                name: name,
+                createdAt: new Date().toISOString(),
+                rotaData: pendingRotaData,
+                shiftsOwed: pendingShiftsOwed
+            };
+            
+            // Save to Google Sheets
+            saveRotaToCloud(name);
+            saveStoredRotas();
+            renderRotaChips();
+            renderStoredRotasList();
+            
+            // Clear pending data
+            document.getElementById('rotaName').value = '';
+            document.getElementById('rotaUploadStatus').className = 'upload-status';
+            document.getElementById('owedUploadStatus').className = 'upload-status';
+            pendingRotaData = null;
+            pendingShiftsOwed = null;
+            
+            alert(`Rota "${name}" saved successfully!`);
+        }
+        
+        function deleteRota(name) {
+            if (confirm(`Are you sure you want to delete "${name}"?`)) {
+                delete storedRotas[name];
+                deleteRotaFromCloud(name);
+                saveStoredRotas();
+                renderRotaChips();
+                renderStoredRotasList();
+            }
+        }
+        
+        function renderStoredRotasList() {
+            const container = document.getElementById('storedRotasList');
+            const names = Object.keys(storedRotas);
+            
+            if (names.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No rotas saved yet.</p>';
+                return;
+            }
+            
+            container.innerHTML = names.map(name => {
+                const rota = storedRotas[name];
+                const date = new Date(rota.createdAt).toLocaleDateString('en-GB');
+                return `
+                    <div class="stored-rota-item">
+                        <div>
+                            <div class="rota-name">${name}</div>
+                            <div class="rota-date">Saved: ${date}</div>
+                        </div>
+                        <button class="btn btn-danger btn-small" onclick="deleteRota('${name}')">Delete</button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // ============================================================
+        // ROTA SELECTION
+        // ============================================================
+        function renderRotaChips() {
+            const container = document.getElementById('rotaChips');
+            const names = Object.keys(storedRotas);
+            const noRotasMsg = document.getElementById('noRotasMessage');
+            
+            if (names.length === 0) {
+                container.innerHTML = '';
+                if (!noRotasMsg) {
+                    container.innerHTML = '<span class="no-rotas-message" id="noRotasMessage">No rotas available. Admin can upload rotas above.</span>';
+                }
+                return;
+            }
+            
+            container.innerHTML = names.map(name => `
+                <button class="rota-chip" onclick="selectRota('${name}')" data-rota="${name}">${name}</button>
+            `).join('');
+        }
+        
+        function selectRota(name) {
+            // Update chip styling
+            document.querySelectorAll('.rota-chip').forEach(chip => {
+                chip.classList.remove('active');
+                if (chip.dataset.rota === name) {
+                    chip.classList.add('active');
+                }
+            });
+            
+            // Load rota data
+            const rota = storedRotas[name];
+            currentRotaData = rota.rotaData;
+            currentShiftsOwed = rota.shiftsOwed;
+            
+            // Update header
+            if (currentRotaData && currentRotaData.length > 0) {
+                const firstWeek = currentRotaData[0].weekStart;
+                const lastWeek = currentRotaData[currentRotaData.length - 1].weekStart;
+                document.getElementById('rotaPeriod').textContent = `${name} • ${firstWeek} - ${lastWeek}`;
+            }
+            
+            // Show UI elements
+            document.getElementById('controlsPanel').style.display = 'flex';
+            document.getElementById('tabsContainer').style.display = 'flex';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('rota-tab').classList.add('active');
+            
+            // Populate consultant dropdown
+            populateConsultantDropdown();
+            
+            // Render tables
+            renderRotaTable();
+            if (currentShiftsOwed) {
+                renderOwedTable();
+            }
+            
+            // Reset selection
+            selectedConsultant = '';
+            document.getElementById('consultantSelect').value = '';
+            document.getElementById('calendarBtn').disabled = true;
+        }
+        
+        function populateConsultantDropdown() {
+            const select = document.getElementById('consultantSelect');
+            select.innerHTML = '<option value="">-- All Consultants --</option>';
+            
+            if (currentShiftsOwed) {
+                currentShiftsOwed.forEach(c => {
+                    const option = document.createElement('option');
+                    option.value = c.initials;
+                    option.textContent = `${c.initials} - ${c.name}`;
+                    select.appendChild(option);
+                });
+            } else {
+                // Extract unique consultants from rota data
+                const consultants = new Set();
+                currentRotaData.forEach(week => {
+                    Object.values(week.days).forEach(day => {
+                        ['d1', 'd2', 'd3', 'rrt'].forEach(slot => {
+                            if (day[slot]) consultants.add(day[slot]);
+                        });
+                    });
+                    if (week.va) consultants.add(week.va);
+                });
+                
+                Array.from(consultants).sort().forEach(c => {
+                    const option = document.createElement('option');
+                    option.value = c;
+                    option.textContent = c;
+                    select.appendChild(option);
+                });
+            }
+        }
+        
+        // ============================================================
+        // ROTA TABLE
+        // ============================================================
+        function renderRotaTable() {
+            if (!currentRotaData) return;
+            
+            const table = document.getElementById('rotaTable');
+            
+            // Build header
+            let headerHTML = `
+                <thead>
+                    <tr>
+                        <th rowspan="2">Week</th>
+                        <th colspan="4">Monday</th>
+                        <th colspan="4">Tuesday</th>
+                        <th colspan="4">Wednesday</th>
+                        <th colspan="4">Thursday</th>
+                        <th colspan="4" class="weekend-header">Friday</th>
+                        <th colspan="4" class="weekend-header">Saturday</th>
+                        <th colspan="4" class="weekend-header">Sunday</th>
+                        <th rowspan="2" class="va-header">VA</th>
+                    </tr>
+                    <tr>
+            `;
+            
+            const daySlots = ['D1', 'D2', 'D3', 'RRT'];
+            const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday'];
+            const weekendDays = ['friday', 'saturday', 'sunday'];
+            
+            weekdays.forEach(() => {
+                daySlots.forEach(slot => {
+                    headerHTML += `<th>${slot}</th>`;
+                });
+            });
+            weekendDays.forEach(() => {
+                daySlots.forEach(slot => {
+                    headerHTML += `<th class="weekend-header">${slot}</th>`;
+                });
+            });
+            
+            headerHTML += '</tr></thead>';
+            
+            // Build body
+            let bodyHTML = '<tbody>';
+            
+            currentRotaData.forEach(week => {
+                bodyHTML += `<tr>`;
+                bodyHTML += `<td class="week-date">${formatDateRange(week.weekStart)}</td>`;
+                
+                const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                const isWeekend = ['friday', 'saturday', 'sunday'];
+                
+                allDays.forEach(day => {
+                    const dayData = week.days[day];
+                    const weekend = isWeekend.includes(day);
+                    
+                    ['d1', 'd2', 'd3', 'rrt'].forEach(slot => {
+                        const consultant = dayData[slot];
+                        let classes = ['consultant-cell'];
+                        if (weekend && slot !== 'rrt') classes.push('weekend-cell');
+                        if (slot === 'rrt') classes.push('rrt-cell');
+                        
+                        bodyHTML += `<td class="${classes.join(' ')}" data-consultant="${consultant}">${consultant}</td>`;
+                    });
+                });
+                
+                // VA column
+                const vaClass = week.va ? 'consultant-cell va-cell' : '';
+                bodyHTML += `<td class="${vaClass}" data-consultant="${week.va}">${week.va || '-'}</td>`;
+                
+                bodyHTML += '</tr>';
+            });
+            
+            bodyHTML += '</tbody>';
+            
+            table.innerHTML = headerHTML + bodyHTML;
+        }
+        
+        function formatDateRange(dateStr) {
+            // Parse DD/MM/YYYY
+            const parts = dateStr.split('/');
+            const startDate = new Date(parts[2], parts[1] - 1, parts[0]);
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 6);
+            
+            const options = { day: 'numeric', month: 'short' };
+            const startFormatted = startDate.toLocaleDateString('en-GB', options);
+            const endFormatted = endDate.toLocaleDateString('en-GB', options);
+            
+            return `${startFormatted} - ${endFormatted}`;
+        }
+        
+        function highlightShifts() {
+            const cells = document.querySelectorAll('.consultant-cell');
+            cells.forEach(cell => {
+                cell.classList.remove('highlighted');
+                if (selectedConsultant && cell.dataset.consultant === selectedConsultant) {
+                    cell.classList.add('highlighted');
+                }
+            });
+        }
+        
+        // ============================================================
+        // SHIFTS OWED TABLE
+        // ============================================================
+        function renderOwedTable() {
+            if (!currentShiftsOwed) {
+                document.getElementById('owedTable').innerHTML = '<tr><td colspan="8" style="padding: 2rem; text-align: center; color: var(--text-muted);">No shifts owed data available for this rota.</td></tr>';
+                return;
+            }
+            
+            const table = document.getElementById('owedTable');
+            
+            let html = `
+                <thead>
+                    <tr>
+                        <th>Consultant</th>
+                        <th>SW</th>
+                        <th>MW</th>
+                        <th>TT</th>
+                        <th>WE</th>
+                        <th>FS</th>
+                        <th>S</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+            
+            currentShiftsOwed.forEach(c => {
+                html += `<tr>`;
+                html += `<td class="consultant-name">${c.initials} - ${c.name}</td>`;
+                html += formatOwedCell(c.sw);
+                html += formatOwedCell(c.mw);
+                html += formatOwedCell(c.tt);
+                html += formatOwedCell(c.we);
+                html += formatOwedCell(c.fs);
+                html += formatOwedCell(c.s);
+                html += `<td class="total-cell ${c.total > 0 ? 'positive' : c.total < 0 ? 'negative' : ''}">${formatOwedValue(c.total)}</td>`;
+                html += `</tr>`;
+            });
+            
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+        
+        function formatOwedCell(value) {
+            const cls = value > 0 ? 'positive' : value < 0 ? 'negative' : '';
+            return `<td class="${cls}">${formatOwedValue(value)}</td>`;
+        }
+        
+        function formatOwedValue(value) {
+            if (value === 0) return '0.0';
+            return (value > 0 ? '+' : '') + value.toFixed(1);
+        }
+        
+        // ============================================================
+        // MY SHIFTS TAB
+        // ============================================================
+        function renderMyShifts() {
+            const container = document.getElementById('myShiftsContent');
+            
+            if (!selectedConsultant || !currentRotaData) {
+                container.innerHTML = `
+                    <p style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        Select a consultant from the dropdown above to view their shifts.
+                    </p>
+                `;
+                return;
+            }
+            
+            const shifts = getConsultantShifts(selectedConsultant);
+            const consultantData = currentShiftsOwed?.find(c => c.initials === selectedConsultant);
+            
+            // Stats
+            const stats = calculateStats(shifts);
+            
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.totalShifts}</div>
+                        <div class="stat-label">Total Shifts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.weekdayDays}</div>
+                        <div class="stat-label">Weekday Days</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.weekendDays}</div>
+                        <div class="stat-label">Weekend Days</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.rrtShifts}</div>
+                        <div class="stat-label">RRT Shifts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.vaShifts}</div>
+                        <div class="stat-label">VA Cover</div>
+                    </div>
+                </div>
+                
+                <div class="rota-card">
+                    <div style="padding: 1rem; border-bottom: 1px solid var(--border);">
+                        <h2 style="margin: 0; font-size: 1.1rem;">📋 Shift List for ${selectedConsultant}${consultantData ? ` (${consultantData.name})` : ''}</h2>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="owed-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Day</th>
+                                    <th>Type</th>
+                                    <th>Working With</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            shifts.forEach(shift => {
+                html += `
+                    <tr>
+                        <td>${formatDate(shift.date)}</td>
+                        <td>${shift.dayName}</td>
+                        <td>${shift.type}</td>
+                        <td>${shift.coworkers || '-'}</td>
+                        <td>${shift.time}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function getConsultantShifts(initials) {
+            if (!currentRotaData) return [];
+            
+            const shifts = [];
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            currentRotaData.forEach(week => {
+                const parts = week.weekStart.split('/');
+                const weekStartDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                
+                const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                
+                allDays.forEach((day, idx) => {
+                    const dayData = week.days[day];
+                    const currentDate = new Date(weekStartDate);
+                    currentDate.setDate(currentDate.getDate() + idx);
+                    
+                    const isWeekend = ['friday', 'saturday', 'sunday'].includes(day);
+                    
+                    // Check D1, D2, D3
+                    ['d1', 'd2', 'd3'].forEach((slot, slotIdx) => {
+                        if (dayData[slot] === initials) {
+                            // Co-workers are the other two day consultants plus RRT
+                            const others = ['d1', 'd2', 'd3']
+                                .filter(s => s !== slot)
+                                .map(s => `D${s.charAt(1)} ${dayData[s]}`)
+                                .concat([`RRT ${dayData.rrt}`])
+                                .join(', ');
+                            shifts.push({
+                                date: new Date(currentDate),
+                                dayName: dayNames[currentDate.getDay()],
+                                type: `D${slotIdx + 1}`,
+                                coworkers: others,
+                                time: '08:00 - 19:30',
+                                category: isWeekend ? 'weekend-day' : 'weekday-day'
+                            });
+                        }
+                    });
+                    
+                    // Check RRT
+                    if (dayData.rrt === initials) {
+                        shifts.push({
+                            date: new Date(currentDate),
+                            dayName: dayNames[currentDate.getDay()],
+                            type: 'RRT',
+                            coworkers: `D1 ${dayData.d1}, D2 ${dayData.d2}, D3 ${dayData.d3}`,
+                            time: 'All day',
+                            category: 'rrt'
+                        });
+                    }
+                });
+                
+                // Check VA - always on Tuesday of this week
+                if (week.va === initials) {
+                    const tuesdayDate = new Date(weekStartDate);
+                    tuesdayDate.setDate(tuesdayDate.getDate() + 1); // Monday + 1 = Tuesday
+                    shifts.push({
+                        date: tuesdayDate,
+                        dayName: 'Tuesday',
+                        type: 'VA',
+                        coworkers: null,
+                        time: '09:00 - 17:00',
+                        category: 'va'
+                    });
+                }
+            });
+            
+            // Sort by date
+            shifts.sort((a, b) => a.date - b.date);
+            
+            return shifts;
+        }
+        
+        function calculateStats(shifts) {
+            return {
+                totalShifts: shifts.length,
+                weekdayDays: shifts.filter(s => s.category === 'weekday-day').length,
+                weekendDays: shifts.filter(s => s.category === 'weekend-day').length,
+                rrtShifts: shifts.filter(s => s.category === 'rrt').length,
+                vaShifts: shifts.filter(s => s.category === 'va').length
+            };
+        }
+        
+        function formatDate(date) {
+            return date.toLocaleDateString('en-GB', { 
+                weekday: 'short',
+                day: 'numeric', 
+                month: 'short', 
+                year: 'numeric' 
+            });
+        }
+        
+        // ============================================================
+        // TAB SWITCHING (within rota section)
+        // ============================================================
+        function switchTab(tabName, event) {
+            currentTab = tabName;
+            
+            // Update tab buttons
+            document.querySelectorAll('#tabsContainer .tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Render my shifts if switching to that tab
+            if (tabName === 'my-shifts') {
+                renderMyShifts();
+            }
+        }
+        
+        // ============================================================
+        // CALENDAR DOWNLOAD
+        // ============================================================
+        function downloadCalendar() {
+            if (!selectedConsultant || !currentRotaData) {
+                alert('Please select a consultant first to download their calendar.');
+                return;
+            }
+            
+            const shifts = getConsultantShifts(selectedConsultant);
+            const previewDiv = document.getElementById('shiftPreview');
+            
+            let previewHTML = '';
+            shifts.slice(0, 10).forEach(shift => {
+                previewHTML += `
+                    <div class="shift-item">
+                        <span class="shift-date">${formatDate(shift.date)}</span>
+                        <span class="shift-type">${shift.type}${shift.coworkers ? ' <span style="font-size:0.8rem;">(' + shift.coworkers + ')</span>' : ''}</span>
+                    </div>
+                `;
+            });
+            
+            if (shifts.length > 10) {
+                previewHTML += `
+                    <div class="shift-item" style="justify-content: center; color: var(--text-muted);">
+                        ... and ${shifts.length - 10} more shifts
+                    </div>
+                `;
+            }
+            
+            previewDiv.innerHTML = previewHTML;
+            document.getElementById('calendarModal').classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('calendarModal').classList.remove('active');
+        }
+        
+        function confirmDownload() {
+            const shifts = getConsultantShifts(selectedConsultant);
+            const consultantData = currentShiftsOwed?.find(c => c.initials === selectedConsultant);
+            const icsContent = generateICS(shifts, consultantData);
+            
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ICU_Rota_${selectedConsultant}${consultantData ? '_' + consultantData.name : ''}.ics`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            closeModal();
+        }
+        
+        function generateICS(shifts, consultantData) {
+            const name = consultantData ? `${consultantData.initials} ${consultantData.name}` : selectedConsultant;
+            
+            let ics = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//ICU Rota//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:ICU Rota - ${name}
+X-WR-TIMEZONE:Europe/London
+`;
+            
+            shifts.forEach((shift, idx) => {
+                const uid = `icu-rota-${selectedConsultant}-${idx}-${shift.date.getTime()}@hospital.nhs.uk`;
+                
+                let startDate, endDate;
+                
+                if (shift.category === 'rrt') {
+                    // RRT is an all-day event
+                    startDate = formatICSDate(shift.date);
+                    const endDateObj = new Date(shift.date);
+                    endDateObj.setDate(endDateObj.getDate() + 1);
+                    endDate = formatICSDate(endDateObj);
+                } else if (shift.category === 'va') {
+                    // VA is 09:00 - 17:00
+                    startDate = formatICSDateTime(shift.date, 9, 0);
+                    endDate = formatICSDateTime(shift.date, 17, 0);
+                } else {
+                    // Day shifts: 08:00 - 19:30
+                    startDate = formatICSDateTime(shift.date, 8, 0);
+                    endDate = formatICSDateTime(shift.date, 19, 30);
+                }
+                
+                const isAllDay = shift.category === 'rrt';
+                
+                ics += `BEGIN:VEVENT
+UID:${uid}
+DTSTAMP:${formatICSDateTime(new Date(), 0, 0)}
+`;
+                
+                if (isAllDay) {
+                    ics += `DTSTART;VALUE=DATE:${startDate}
+DTEND;VALUE=DATE:${endDate}
+`;
+                } else {
+                    ics += `DTSTART;TZID=Europe/London:${startDate}
+DTEND;TZID=Europe/London:${endDate}
+`;
+                }
+                
+                ics += `SUMMARY:${shift.type}${shift.coworkers ? ' (' + shift.coworkers + ')' : ''}
+DESCRIPTION:ICU ${shift.type} shift for ${name}${shift.coworkers ? '\\nWorking with: ' + shift.coworkers : ''}
+LOCATION:Intensive Care Unit
+STATUS:CONFIRMED
+END:VEVENT
+`;
+            });
+            
+            ics += 'END:VCALENDAR';
+            return ics;
+        }
+        
+        function formatICSDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}${month}${day}`;
+        }
+        
+        function formatICSDateTime(date, hour, minute) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const h = String(hour).padStart(2, '0');
+            const m = String(minute).padStart(2, '0');
+            return `${year}${month}${day}T${h}${m}00`;
+        }
+        
+        // ============================================================
+        // AVAILABILITY CALENDAR
+        // ============================================================
+        const CONSULTANTS_LIST = ['AJ', 'VN', 'PB', 'JP', 'RM', 'MT', 'JV', 'JM', 'SF', 'MG', 'PF', 'CS', 'ACM', 'KP', 'IG', 'MK', 'CH', 'SS', 'KA', 'VB'];
+        
+        const SHIFT_TYPES = ['SW', 'MW', 'TT', 'WE', 'FS', 'S', 'VA', 'FU'];
+        
+        const SHIFT_TYPE_LABELS = {
+            'SW': 'Weekday Days (Mon-Thu)',
+            'MW': 'Monday RRT',
+            'TT': 'Tuesday RRT', 
+            'WE': 'Weekend Days (Fri-Sun)',
+            'FS': 'Fri-Sun RRT (48h)',
+            'S': 'Saturday RRT',
+            'VA': 'Vascular Access',
+            'FU': 'Follow-up Clinic'
+        };
+        
+        // VA eligible consultants
+        const VA_ELIGIBLE = ['AJ', 'JV', 'KA'];
+        // FU eligible consultants
+        const FU_ELIGIBLE = ['MT', 'MG'];
+        
+        // Availability periods (admin-defined)
+        let availabilityPeriods = {};
+        let currentPeriod = null;
+        let schoolHolidays = {}; // weekKey -> holiday name
+        
+        function loadAvailabilityData() {
+            try {
+                const stored = localStorage.getItem('icuAvailability3');
+                if (stored) {
+                    availabilityData = JSON.parse(stored);
+                }
+                const periods = localStorage.getItem('icuAvailPeriods');
+                if (periods) {
+                    availabilityPeriods = JSON.parse(periods);
+                }
+                const holidays = localStorage.getItem('icuSchoolHolidays');
+                if (holidays) {
+                    schoolHolidays = JSON.parse(holidays);
+                }
+            } catch (e) {
+                console.error('Error loading availability:', e);
+                availabilityData = {};
+                availabilityPeriods = {};
+                schoolHolidays = {};
+            }
+        }
+        
+        function saveAvailabilityData() {
+            // Keep localStorage as backup
+            try {
+                localStorage.setItem('icuAvailability3', JSON.stringify(availabilityData));
+            } catch (e) {
+                console.error('Error saving availability:', e);
+            }
+        }
+        
+        // Save individual availability cell to cloud
+        async function saveAvailabilityCellToCloud(period, weekKey, shiftType, consultant, status) {
+            await apiCall('saveAvailability', {
+                data: {
+                    period: period,
+                    weekKey: weekKey,
+                    shiftType: shiftType,
+                    consultant: consultant,
+                    status: status
+                }
+            });
+        }
+        
+        function saveAvailabilityPeriods() {
+            try {
+                localStorage.setItem('icuAvailPeriods', JSON.stringify(availabilityPeriods));
+            } catch (e) {
+                console.error('Error saving periods:', e);
+            }
+            // Save to cloud
+            apiCall('saveConfig', { data: { key: 'availabilityPeriods', value: availabilityPeriods } });
+        }
+        
+        function saveSchoolHolidays() {
+            try {
+                localStorage.setItem('icuSchoolHolidays', JSON.stringify(schoolHolidays));
+            } catch (e) {
+                console.error('Error saving holidays:', e);
+            }
+            // Save to cloud
+            apiCall('saveConfig', { data: { key: 'schoolHolidays', value: schoolHolidays } });
+        }
+        
+        function populateAvailConsultantDropdown() {
+            const select = document.getElementById('availConsultantSelect');
+            if (select.options.length <= 1) {
+                CONSULTANTS_LIST.forEach(c => {
+                    const name = currentShiftsOwed?.find(s => s.initials === c)?.name || '';
+                    const option = document.createElement('option');
+                    option.value = c;
+                    option.textContent = name ? `${c} - ${name}` : c;
+                    select.appendChild(option);
+                });
+            }
+        }
+        
+        function loginAvailability() {
+            const consultant = document.getElementById('availConsultantSelect').value;
+            const password = document.getElementById('availPassword').value;
+            
+            if (!consultant) {
+                alert('Please select your name');
+                return;
+            }
+            
+            if (CONSULTANT_PASSWORDS[consultant] === password) {
+                loggedInConsultant = consultant;
+                document.getElementById('availLoginSection').style.display = 'none';
+                document.getElementById('availLoggedInSection').style.display = 'block';
+                const name = currentShiftsOwed?.find(s => s.initials === consultant)?.name || consultant;
+                document.getElementById('loggedInName').textContent = `${consultant} (${name})`;
+                renderAvailabilityTable();
+                highlightTheatreBookings();
+            } else {
+                alert('Incorrect password');
+            }
+        }
+        
+        function logoutAvailability() {
+            loggedInConsultant = null;
+            document.getElementById('availLoginSection').style.display = 'block';
+            document.getElementById('availLoggedInSection').style.display = 'none';
+            document.getElementById('availPassword').value = '';
+            document.getElementById('availConsultantSelect').value = '';
+            renderAvailabilityTable();
+            highlightTheatreBookings();
+        }
+        
+        function addAvailabilityPeriod() {
+            const name = document.getElementById('periodName').value.trim();
+            const startStr = document.getElementById('periodStart').value;
+            const endStr = document.getElementById('periodEnd').value;
+            
+            if (!name || !startStr || !endStr) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            const start = new Date(startStr);
+            const end = new Date(endStr);
+            
+            if (start >= end) {
+                alert('End date must be after start date');
+                return;
+            }
+            
+            // Adjust start to Monday if needed
+            while (start.getDay() !== 1) {
+                start.setDate(start.getDate() + 1);
+            }
+            
+            availabilityPeriods[name] = {
+                name: name,
+                start: start.toISOString().split('T')[0],
+                end: end.toISOString().split('T')[0],
+                createdAt: new Date().toISOString()
+            };
+            
+            saveAvailabilityPeriods();
+            renderPeriodTabs();
+            renderSavedPeriodsList();
+            updateHolidayWeekSelect();
+            
+            // Clear inputs
+            document.getElementById('periodName').value = '';
+            document.getElementById('periodStart').value = '';
+            document.getElementById('periodEnd').value = '';
+            
+            // Select the new period
+            selectPeriod(name);
+        }
+        
+        function deletePeriod(name) {
+            if (confirm(`Delete period "${name}"?`)) {
+                delete availabilityPeriods[name];
+                saveAvailabilityPeriods();
+                renderPeriodTabs();
+                renderSavedPeriodsList();
+                updateHolidayWeekSelect();
+                
+                if (currentPeriod === name) {
+                    currentPeriod = null;
+                    document.getElementById('availabilityTable').style.display = 'none';
+                    document.getElementById('noPeriodSelected').style.display = 'block';
+                }
+            }
+        }
+        
+        function renderSavedPeriodsList() {
+            const container = document.getElementById('savedPeriodsList');
+            const names = Object.keys(availabilityPeriods);
+            
+            if (names.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No periods configured yet.</p>';
+                return;
+            }
+            
+            container.innerHTML = names.map(name => {
+                const period = availabilityPeriods[name];
+                return `
+                    <div class="stored-rota-item">
+                        <div>
+                            <div class="rota-name">${name}</div>
+                            <div class="rota-date">${period.start} to ${period.end}</div>
+                        </div>
+                        <button class="btn btn-danger btn-small" onclick="deletePeriod('${name}')">Delete</button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function renderPeriodTabs() {
+            const container = document.getElementById('periodTabs');
+            const names = Object.keys(availabilityPeriods);
+            
+            if (names.length === 0) {
+                container.innerHTML = '<span style="color: var(--text-muted); font-style: italic;" id="noPeriodsMsg">No periods configured. Admin can add periods.</span>';
+                return;
+            }
+            
+            container.innerHTML = names.map(name => `
+                <button class="quarter-tab ${currentPeriod === name ? 'active' : ''}" onclick="selectPeriod('${name}')">${name}</button>
+            `).join('');
+        }
+        
+        function selectPeriod(name) {
+            currentPeriod = name;
+            renderPeriodTabs();
+            document.getElementById('noPeriodSelected').style.display = 'none';
+            document.getElementById('availabilityTable').style.display = 'table';
+            updateHolidayWeekSelect();
+            renderAvailabilityTable();
+        }
+        
+        function getPeriodWeeks(periodName) {
+            const period = availabilityPeriods[periodName];
+            if (!period) return [];
+            
+            const weeks = [];
+            let current = new Date(period.start);
+            const end = new Date(period.end);
+            
+            // Ensure we start on a Monday
+            while (current.getDay() !== 1) {
+                current.setDate(current.getDate() + 1);
+            }
+            
+            while (current <= end) {
+                weeks.push(new Date(current));
+                current.setDate(current.getDate() + 7);
+            }
+            
+            return weeks;
+        }
+        
+        function formatWeekKey(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        
+        function formatWeekLabel(date) {
+            const day = date.getDate();
+            const month = date.toLocaleDateString('en-GB', { month: 'short' });
+            return `${day} ${month}`;
+        }
+        
+        function getAvailKey(weekKey, shiftType, consultant) {
+            return `${weekKey}|${shiftType}|${consultant}`;
+        }
+        
+        function isNotApplicable(shiftType, consultant) {
+            if (shiftType === 'VA' && !VA_ELIGIBLE.includes(consultant)) return true;
+            if (shiftType === 'FU' && !FU_ELIGIBLE.includes(consultant)) return true;
+            return false;
+        }
+        
+        // School holidays
+        function updateHolidayWeekSelect() {
+            const select = document.getElementById('holidayWeekSelect');
+            if (!select) return;
+            
+            select.innerHTML = '<option value="">-- Select Week --</option>';
+            
+            if (!currentPeriod) return;
+            
+            const weeks = getPeriodWeeks(currentPeriod);
+            weeks.forEach(week => {
+                const weekKey = formatWeekKey(week);
+                const option = document.createElement('option');
+                option.value = weekKey;
+                option.textContent = formatWeekLabel(week) + ' ' + week.getFullYear();
+                if (schoolHolidays[weekKey]) {
+                    option.textContent += ` (${schoolHolidays[weekKey]})`;
+                }
+                select.appendChild(option);
+            });
+        }
+        
+        function addSchoolHoliday() {
+            const weekKey = document.getElementById('holidayWeekSelect').value;
+            const name = document.getElementById('holidayName').value.trim() || 'School Holiday';
+            
+            if (!weekKey) {
+                alert('Please select a week');
+                return;
+            }
+            
+            schoolHolidays[weekKey] = name;
+            saveSchoolHolidays();
+            renderHolidayList();
+            updateHolidayWeekSelect();
+            renderAvailabilityTable();
+            
+            document.getElementById('holidayName').value = '';
+            document.getElementById('holidayWeekSelect').value = '';
+        }
+        
+        function removeSchoolHoliday(weekKey) {
+            delete schoolHolidays[weekKey];
+            saveSchoolHolidays();
+            renderHolidayList();
+            updateHolidayWeekSelect();
+            renderAvailabilityTable();
+        }
+        
+        function renderHolidayList() {
+            const container = document.getElementById('holidayList');
+            if (!container) return;
+            
+            const keys = Object.keys(schoolHolidays).sort();
+            
+            if (keys.length === 0) {
+                container.innerHTML = '<p style="padding: 0.75rem; color: var(--text-muted); font-size: 0.85rem;">No holidays marked.</p>';
+                return;
+            }
+            
+            container.innerHTML = keys.map(weekKey => `
+                <div class="holiday-item">
+                    <div>
+                        <span class="holiday-week">${weekKey}</span>
+                        <span class="holiday-name">${schoolHolidays[weekKey]}</span>
+                    </div>
+                    <button class="btn btn-danger btn-small" onclick="removeSchoolHoliday('${weekKey}')" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">✗</button>
+                </div>
+            `).join('');
+        }
+        
+        function renderAvailabilityTable() {
+            if (!currentPeriod) return;
+            
+            loadAvailabilityData();
+            const table = document.getElementById('availabilityTable');
+            const weeks = getPeriodWeeks(currentPeriod);
+            
+            if (weeks.length === 0) {
+                table.innerHTML = '<tr><td>No weeks in this period</td></tr>';
+                return;
+            }
+            
+            // Header row: Week_Start, Shift_Type, then each consultant
+            let html = '<thead><tr>';
+            html += '<th class="shift-type-header">Week</th>';
+            html += '<th class="shift-type-header">Shift</th>';
+            CONSULTANTS_LIST.forEach(consultant => {
+                const isCurrentUser = loggedInConsultant === consultant;
+                html += `<th class="consultant-col-header ${isCurrentUser ? 'style="background: #059669;"' : ''}">${consultant}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            // For each week, then for each shift type (like CSV format)
+            weeks.forEach(week => {
+                const weekKey = formatWeekKey(week);
+                const isHoliday = schoolHolidays[weekKey];
+                
+                SHIFT_TYPES.forEach((shiftType, shiftIdx) => {
+                    const isFirstShiftOfWeek = shiftIdx === 0;
+                    const rowClass = isHoliday ? 'school-holiday' : '';
+                    
+                    html += `<tr class="${rowClass}">`;
+                    
+                    // Week column (only show on first shift type row, span all shift types)
+                    if (isFirstShiftOfWeek) {
+                        html += `<td class="week-row-header" rowspan="${SHIFT_TYPES.length}" style="${isHoliday ? 'background: #fef3c7;' : ''}">
+                            ${formatWeekLabel(week)}
+                            ${isHoliday ? `<span class="holiday-indicator">${isHoliday}</span>` : ''}
+                        </td>`;
+                    }
+                    
+                    // Shift type column
+                    html += `<td class="shift-type-cell">${shiftType}</td>`;
+                    
+                    // Consultant columns
+                    CONSULTANTS_LIST.forEach(consultant => {
+                        const availKey = getAvailKey(weekKey, shiftType, consultant);
+                        const isNA = isNotApplicable(shiftType, consultant);
+                        const storedValue = availabilityData[availKey];
+                        const isCurrentUser = loggedInConsultant === consultant;
+                        const canEdit = isCurrentUser && !isNA;
+                        
+                        let cellClass = 'blank';
+                        let cellContent = '';
+                        
+                        if (isNA) {
+                            cellClass = 'not_applicable';
+                            cellContent = '-';
+                        } else if (storedValue === 'unavailable') {
+                            cellClass = 'unavailable';
+                            cellContent = '✗';
+                        } else if (storedValue === 'preferred') {
+                            cellClass = 'preferred';
+                            cellContent = '✓';
+                        }
+                        
+                        html += `<td class="avail-cell ${cellClass} ${canEdit ? '' : 'readonly'}" 
+                                     data-key="${availKey}" 
+                                     data-consultant="${consultant}"
+                                     data-na="${isNA}"
+                                     onclick="cycleAvailability(this, '${availKey}', '${consultant}', ${isNA})">
+                            ${cellContent}
+                        </td>`;
+                    });
+                    
+                    html += '</tr>';
+                });
+            });
+            
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+        
+        function cycleAvailability(cell, availKey, consultant, isNA) {
+            if (loggedInConsultant !== consultant || isNA) return;
+            
+            const currentValue = availabilityData[availKey];
+            
+            // Cycle: blank -> unavailable -> preferred -> blank
+            let nextValue = null;
+            let nextClass = 'blank';
+            let nextContent = '';
+            
+            if (!currentValue) {
+                nextValue = 'unavailable';
+                nextClass = 'unavailable';
+                nextContent = '✗';
+            } else if (currentValue === 'unavailable') {
+                nextValue = 'preferred';
+                nextClass = 'preferred';
+                nextContent = '✓';
+            } else {
+                nextValue = null; // back to blank (available)
+                nextClass = 'blank';
+                nextContent = '';
+            }
+            
+            if (nextValue) {
+                availabilityData[availKey] = nextValue;
+            } else {
+                delete availabilityData[availKey];
+            }
+            
+            saveAvailabilityData();
+            
+            // Parse availKey to save to cloud: format is "periodName_weekKey_shiftType_consultant"
+            const parts = availKey.split('_');
+            if (parts.length >= 4) {
+                const period = currentPeriod;
+                const weekKey = parts.slice(0, -2).join('_'); // Handle week keys with underscores
+                const shiftType = parts[parts.length - 2];
+                // Save to cloud
+                saveAvailabilityCellToCloud(period, weekKey, shiftType, consultant, nextValue || '');
+            }
+            
+            // Update cell
+            cell.className = `avail-cell ${nextClass}`;
+            cell.textContent = nextContent;
+        }
+        
+        function renderAvailabilityGrid() {
+            // Called when switching to availability section
+            loadAvailabilityData();
+            renderPeriodTabs();
+            renderTheatrePeriodTabs();
+            updateHolidayWeekSelect();
+            
+            if (currentPeriod && availabilityPeriods[currentPeriod]) {
+                renderAvailabilityTable();
+                renderTheatreTable();
+            }
+        }
+        
+        // ============================================================
+        // AVAILABILITY SUB-TAB SWITCHING
+        // ============================================================
+        function switchAvailSubTab(tabId, event) {
+            // Update tab buttons
+            document.querySelectorAll('#availSubTabs .tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update sub-sections
+            document.querySelectorAll('.avail-sub-section').forEach(section => {
+                section.classList.remove('active');
+                section.style.display = 'none';
+            });
+            document.getElementById(tabId + '-section').classList.add('active');
+            document.getElementById(tabId + '-section').style.display = 'block';
+            
+            // Render appropriate content
+            if (tabId === 'theatre-avail') {
+                // Populate and set the view consultant dropdown
+                populateTheatreViewConsultant();
+                // If logged in, auto-select that consultant for viewing
+                if (loggedInConsultant && isAnaesthetist(loggedInConsultant)) {
+                    theatreViewConsultant = loggedInConsultant;
+                    const select = document.getElementById('theatreViewConsultant');
+                    if (select) select.value = loggedInConsultant;
+                }
+                
+                renderTheatrePeriodTabs();
+                renderTheatreTable();
+                renderLieuDaysList();
+                renderVADaysList();
+                renderTheatreTotals();
+                
+                // Show/hide extras panel based on login status (anaesthetists + VA-eligible)
+                const userSurname = loggedInConsultant ? isAnaesthetist(loggedInConsultant) : null;
+                const isVAEligible = VA_ELIGIBLE.includes(loggedInConsultant);
+                const extrasPanel = document.getElementById('theatreExtrasPanel');
+                if (extrasPanel) {
+                    extrasPanel.style.display = (userSurname || isVAEligible || isAdminUnlocked) ? 'block' : 'none';
+                }
+                
+                // Show/hide VA input based on eligibility
+                const vaInputSection = document.getElementById('vaInputSection');
+                const vaNotEligible = document.getElementById('vaNotEligible');
+                if (vaInputSection) vaInputSection.style.display = (isAdminUnlocked || isVAEligible) ? 'flex' : 'none';
+                if (vaNotEligible) vaNotEligible.style.display = (isAdminUnlocked || isVAEligible) ? 'none' : 'block';
+            }
+        }
+        
+        // ============================================================
+        // THEATRE AVAILABILITY
+        // ============================================================
+        // Anaesthetist initials to surname mapping (only these can edit theatre)
+        const ANAESTHETIST_MAP = {
+            'VN': 'Navapurkar',
+            'PB': 'Bradley', 
+            'RM': 'Mahroof',
+            'MT': 'Trivedi',
+            'JV': 'Varley',
+            'JM': 'Martin',
+            'SF': 'Ford',
+            'MG': 'Georgieva',
+            'PF': 'Featherstone',
+            'IG': 'Goodhart',
+            'KP': 'Keil',
+            'CH': 'Hall',
+            'SS': 'Stevenson',
+            'ACM': 'Conway-Morris',
+            'VB': 'Bashliyski'
+        };
+        
+        // Reverse mapping: surname to initials
+        const SURNAME_TO_INITIALS = {};
+        for (const [initials, surname] of Object.entries(ANAESTHETIST_MAP)) {
+            SURNAME_TO_INITIALS[surname] = initials;
+        }
+        
+        let theatreBookings = {}; // dateKey -> [slot1, slot2, slot3]
+        let lieuDays = {}; // initials -> [dateKey, dateKey, ...]
+        let vaDays = {}; // initials -> [dateKey, dateKey, ...]
+        let currentTheatreRota = null;
+        let theatreViewConsultant = null; // For viewing ICU pattern without logging in
+        
+        function populateTheatreViewConsultant() {
+            const select = document.getElementById('theatreViewConsultant');
+            if (!select) return;
+            
+            // Only show anaesthetists in the dropdown
+            let html = '<option value="">-- Select consultant --</option>';
+            Object.entries(ANAESTHETIST_MAP).forEach(([initials, surname]) => {
+                const selected = theatreViewConsultant === initials ? 'selected' : '';
+                html += `<option value="${initials}" ${selected}>${surname} (${initials})</option>`;
+            });
+            select.innerHTML = html;
+        }
+        
+        function changeTheatreViewConsultant() {
+            const select = document.getElementById('theatreViewConsultant');
+            theatreViewConsultant = select.value || null;
+            renderTheatreTable();
+        }
+        
+        function loadTheatreBookings() {
+            try {
+                const stored = localStorage.getItem('icuTheatreBookings');
+                if (stored) theatreBookings = JSON.parse(stored);
+                const storedLieu = localStorage.getItem('icuLieuDays');
+                if (storedLieu) lieuDays = JSON.parse(storedLieu);
+                const storedVA = localStorage.getItem('icuVADays');
+                if (storedVA) vaDays = JSON.parse(storedVA);
+            } catch (e) {
+                console.error('Error loading theatre bookings:', e);
+                theatreBookings = {};
+                lieuDays = {};
+                vaDays = {};
+            }
+        }
+        
+        function saveTheatreBookings() {
+            // Keep localStorage as backup
+            try {
+                localStorage.setItem('icuTheatreBookings', JSON.stringify(theatreBookings));
+                localStorage.setItem('icuLieuDays', JSON.stringify(lieuDays));
+                localStorage.setItem('icuVADays', JSON.stringify(vaDays));
+            } catch (e) {
+                console.error('Error saving theatre bookings:', e);
+            }
+        }
+        
+        // Save theatre booking to cloud
+        async function saveTheatreBookingToCloud(dateKey, slots) {
+            await apiCall('saveTheatreBooking', {
+                data: { dateKey: dateKey, slots: slots }
+            });
+        }
+        
+        // Add lieu day to cloud
+        async function addLieuDayToCloud(initials, dateKey) {
+            await apiCall('addLieuDay', { initials: initials, dateKey: dateKey });
+        }
+        
+        // Remove lieu day from cloud
+        async function removeLieuDayFromCloud(initials, dateKey) {
+            await apiCall('removeLieuDay', { initials: initials, dateKey: dateKey });
+        }
+        
+        // Add VA day to cloud
+        async function addVADayToCloud(initials, dateKey) {
+            await apiCall('addVADay', { initials: initials, dateKey: dateKey });
+        }
+        
+        // Remove VA day from cloud
+        async function removeVADayFromCloud(initials, dateKey) {
+            await apiCall('removeVADay', { initials: initials, dateKey: dateKey });
+        }
+        
+        function renderTheatrePeriodTabs() {
+            const container = document.getElementById('theatrePeriodTabs');
+            if (!container) return;
+            
+            // Theatre uses published rotas, not availability periods
+            const rotaNames = Object.keys(storedRotas);
+            
+            if (rotaNames.length === 0) {
+                container.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">No rotas published yet</span>';
+                return;
+            }
+            
+            container.innerHTML = rotaNames.map(name => `
+                <button class="quarter-tab ${currentTheatreRota === name ? 'active' : ''}" onclick="selectTheatreRota('${name}')">${name}</button>
+            `).join('');
+        }
+        
+        function selectTheatreRota(name) {
+            currentTheatreRota = name;
+            renderTheatrePeriodTabs();
+            
+            // Populate the view consultant dropdown
+            populateTheatreViewConsultant();
+            // If logged in as anaesthetist, auto-select for viewing
+            if (loggedInConsultant && isAnaesthetist(loggedInConsultant)) {
+                theatreViewConsultant = loggedInConsultant;
+                const select = document.getElementById('theatreViewConsultant');
+                if (select) select.value = loggedInConsultant;
+            }
+            
+            // Show extras panel if logged in as anaesthetist, VA-eligible, or admin
+            const userSurname = loggedInConsultant ? isAnaesthetist(loggedInConsultant) : null;
+            const isVAEligible = VA_ELIGIBLE.includes(loggedInConsultant);
+            const extrasPanel = document.getElementById('theatreExtrasPanel');
+            if (extrasPanel) {
+                extrasPanel.style.display = (userSurname || isVAEligible || isAdminUnlocked) ? 'block' : 'none';
+            }
+            
+            // Show/hide VA input based on eligibility (only AJ, JV, KA can add VA)
+            const vaInputSection = document.getElementById('vaInputSection');
+            const vaNotEligible = document.getElementById('vaNotEligible');
+            if (vaInputSection) vaInputSection.style.display = (isAdminUnlocked || isVAEligible) ? 'flex' : 'none';
+            if (vaNotEligible) vaNotEligible.style.display = (isAdminUnlocked || isVAEligible) ? 'none' : 'block';
+            
+            // Auto-populate VA days from rota
+            autoPopulateVADays();
+            
+            renderTheatreTable();
+            renderLieuDaysList();
+            renderVADaysList();
+            renderTheatreTotals();
+        }
+        
+        function autoPopulateVADays() {
+            if (!currentTheatreRota || !storedRotas[currentTheatreRota]) return;
+            
+            const rotaData = storedRotas[currentTheatreRota].rotaData;
+            if (!rotaData) return;
+            
+            // Helper to parse date string
+            const parseDate = (str) => {
+                if (!str) return null;
+                const ddmmyyyy = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                if (ddmmyyyy) {
+                    return new Date(parseInt(ddmmyyyy[3]), parseInt(ddmmyyyy[2]) - 1, parseInt(ddmmyyyy[1]));
+                }
+                return new Date(str);
+            };
+            
+            rotaData.forEach(week => {
+                const weekStartStr = week.weekStart || week.Week_Start || week.week_start;
+                if (!weekStartStr) return;
+                
+                const vaAssignment = week.va || week.VA;
+                if (vaAssignment && vaAssignment !== '-' && vaAssignment !== '' && ANAESTHETIST_MAP[vaAssignment]) {
+                    // VA is on Tuesday of that week
+                    const weekDate = parseDate(weekStartStr);
+                    if (!weekDate || isNaN(weekDate.getTime())) return;
+                    
+                    const tuesday = new Date(weekDate);
+                    tuesday.setDate(tuesday.getDate() + 1);
+                    const dateKey = formatDateKey(tuesday);
+                    
+                    if (!vaDays[vaAssignment]) vaDays[vaAssignment] = [];
+                    if (!vaDays[vaAssignment].includes(dateKey)) {
+                        vaDays[vaAssignment].push(dateKey);
+                    }
+                }
+            });
+            saveTheatreBookings();
+        }
+        
+        function getICUCommitmentsForDate(dateKey, consultant) {
+            if (!currentTheatreRota || !storedRotas[currentTheatreRota]) return null;
+            
+            const rotaData = storedRotas[currentTheatreRota].rotaData;
+            if (!rotaData) return null;
+            
+            const date = new Date(dateKey);
+            const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+            
+            // Helper to parse date string
+            const parseDate = (str) => {
+                if (!str) return null;
+                const ddmmyyyy = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                if (ddmmyyyy) {
+                    return new Date(parseInt(ddmmyyyy[3]), parseInt(ddmmyyyy[2]) - 1, parseInt(ddmmyyyy[1]));
+                }
+                return new Date(str);
+            };
+            
+            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            
+            for (const week of rotaData) {
+                const weekStartStr = week.weekStart || week.Week_Start || week.week_start;
+                const weekStart = parseDate(weekStartStr);
+                if (!weekStart || isNaN(weekStart.getTime())) continue;
+                
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                
+                if (date >= weekStart && date <= weekEnd) {
+                    const commitments = [];
+                    const dayName = dayNames[dayOfWeek];
+                    const dayData = week.days?.[dayName];
+                    
+                    if (dayData) {
+                        // Check day shifts (d1, d2, d3)
+                        if (dayData.d1 === consultant || dayData.d2 === consultant || dayData.d3 === consultant) {
+                            commitments.push('Day');
+                        }
+                        
+                        // Check RRT for this day
+                        if (dayData.rrt === consultant) {
+                            commitments.push('RRT');
+                        }
+                    }
+                    
+                    // Also check if Monday RRT blocks Tuesday (24hr shift)
+                    if (dayOfWeek === 2 && week.days?.monday?.rrt === consultant) {
+                        if (!commitments.includes('RRT')) commitments.push('RRT');
+                    }
+                    
+                    // Check if Tuesday RRT blocks Wednesday
+                    if (dayOfWeek === 3 && week.days?.tuesday?.rrt === consultant) {
+                        if (!commitments.includes('RRT')) commitments.push('RRT');
+                    }
+                    
+                    // VA on Tuesday
+                    if (dayOfWeek === 2 && week.va === consultant) {
+                        commitments.push('VA');
+                    }
+                    
+                    return commitments.length > 0 ? commitments.join('/') : null;
+                }
+            }
+            return null;
+        }
+        
+        function getAllDaysInRota(rotaName) {
+            if (!storedRotas[rotaName]) return [];
+            
+            const rotaData = storedRotas[rotaName].rotaData;
+            if (!rotaData || rotaData.length === 0) return [];
+            
+            const days = [];
+            
+            // Get the weekStart property (could be weekStart, Week_Start, or week_start)
+            const getWeekStart = (week) => week.weekStart || week.Week_Start || week.week_start;
+            
+            const firstWeekStr = getWeekStart(rotaData[0]);
+            const lastWeekStr = getWeekStart(rotaData[rotaData.length - 1]);
+            
+            if (!firstWeekStr || !lastWeekStr) return [];
+            
+            // Parse DD/MM/YYYY format
+            const parseDate = (str) => {
+                if (!str) return null;
+                // Try DD/MM/YYYY format first
+                const ddmmyyyy = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                if (ddmmyyyy) {
+                    return new Date(parseInt(ddmmyyyy[3]), parseInt(ddmmyyyy[2]) - 1, parseInt(ddmmyyyy[1]));
+                }
+                // Try YYYY-MM-DD format
+                const yyyymmdd = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if (yyyymmdd) {
+                    return new Date(parseInt(yyyymmdd[1]), parseInt(yyyymmdd[2]) - 1, parseInt(yyyymmdd[3]));
+                }
+                // Fallback to Date constructor
+                return new Date(str);
+            };
+            
+            const firstWeek = parseDate(firstWeekStr);
+            const lastWeek = parseDate(lastWeekStr);
+            
+            if (!firstWeek || !lastWeek || isNaN(firstWeek.getTime()) || isNaN(lastWeek.getTime())) {
+                return [];
+            }
+            
+            const endDate = new Date(lastWeek);
+            endDate.setDate(endDate.getDate() + 6);
+            
+            let current = new Date(firstWeek);
+            while (current <= endDate) {
+                days.push(new Date(current));
+                current.setDate(current.getDate() + 1);
+            }
+            
+            return days;
+        }
+        
+        function formatDateKey(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        
+        function formatTheatreDate(date) {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const day = date.getDate();
+            const month = date.toLocaleDateString('en-GB', { month: 'short' });
+            return `${days[date.getDay()]} ${day} ${month}`;
+        }
+        
+        function isAnaesthetist(consultant) {
+            return ANAESTHETIST_MAP[consultant] || null;
+        }
+        
+        function renderTheatreTable() {
+            if (!currentTheatreRota) {
+                document.getElementById('theatreTable').innerHTML = '<tr><td style="padding: 2rem; text-align: center; color: var(--text-muted);">Select a rota above to view theatre availability</td></tr>';
+                return;
+            }
+            
+            loadTheatreBookings();
+            const table = document.getElementById('theatreTable');
+            const allDays = getAllDaysInRota(currentTheatreRota);
+            
+            if (allDays.length === 0) {
+                table.innerHTML = '<tr><td style="padding: 2rem; text-align: center; color: var(--text-muted);">No days found in this rota</td></tr>';
+                return;
+            }
+            
+            // Use logged-in consultant if available, otherwise use view selector
+            const viewInitials = loggedInConsultant || theatreViewConsultant;
+            const userSurname = loggedInConsultant ? isAnaesthetist(loggedInConsultant) : null;
+            
+            let html = '<thead><tr>';
+            html += '<th style="min-width: 100px;">Date</th>';
+            html += '<th style="min-width: 50px;">ICU</th>';
+            html += '<th>Slot 1</th>';
+            html += '<th>Slot 2</th>';
+            html += '<th>Slot 3</th>';
+            html += '</tr></thead><tbody>';
+            
+            allDays.forEach(date => {
+                const dateKey = formatDateKey(date);
+                const dayOfWeek = date.getDay();
+                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                const bookings = theatreBookings[dateKey] || ['', '', ''];
+                const isHoliday = schoolHolidays[formatWeekKey(getWeekStart(date))];
+                
+                // Use viewInitials for ICU commitments display
+                const icuCommitment = viewInitials ? getICUCommitmentsForDate(dateKey, viewInitials) : null;
+                const isLieuDay = viewInitials && lieuDays[viewInitials]?.includes(dateKey);
+                const isVADay = viewInitials && vaDays[viewInitials]?.includes(dateKey);
+                // Only block if logged in (not just viewing)
+                const isBlocked = loggedInConsultant && icuCommitment !== null;
+                
+                // Row styling for weekends
+                const rowClass = isWeekend ? 'theatre-weekend-row' : '';
+                
+                html += `<tr class="${rowClass}">`;
+                html += `<td class="theatre-day-header ${isWeekend ? 'weekend' : ''}">
+                    ${formatTheatreDate(date)}
+                    ${isHoliday ? `<span class="holiday-indicator">${isHoliday}</span>` : ''}
+                    ${isLieuDay ? `<span class="holiday-indicator" style="background:#fef3c7;color:#92400e;">LIEU</span>` : ''}
+                    ${isVADay ? `<span class="holiday-indicator" style="background:#e0e7ff;color:#3730a3;">VA</span>` : ''}
+                </td>`;
+                
+                // ICU commitment column - show for selected/logged-in consultant
+                html += `<td class="theatre-icu-cell ${icuCommitment ? 'has-icu' : ''}">${icuCommitment || '-'}</td>`;
+                
+                // Theatre slots - only bookable on weekdays
+                for (let slot = 0; slot < 3; slot++) {
+                    const slotValue = bookings[slot] || '';
+                    const isMyBooking = userSurname && slotValue === userSurname;
+                    
+                    let cellClass = 'theatre-slot';
+                    if (isWeekend) {
+                        cellClass += ' weekend';
+                    } else if (isBlocked && !isAdminUnlocked) {
+                        cellClass += ' icu-blocked';
+                    } else if (isMyBooking) {
+                        cellClass += ' my-booking';
+                    } else if (slotValue) {
+                        cellClass += ' booked';
+                    }
+                    
+                    // Weekends show dash, not bookable (unless admin)
+                    if (isWeekend && !isAdminUnlocked) {
+                        html += `<td class="${cellClass}">-</td>`;
+                    } else {
+                        html += `<td class="${cellClass}" 
+                                     data-date="${dateKey}" 
+                                     data-slot="${slot}"
+                                     data-booked-by="${slotValue}"
+                                     onclick="toggleTheatreSlot('${dateKey}', ${slot}, ${isBlocked}, ${isWeekend})">
+                            ${slotValue}
+                        </td>`;
+                    }
+                }
+                
+                html += '</tr>';
+            });
+            
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+        
+        function highlightTheatreBookings() {
+            const userSurname = loggedInConsultant ? isAnaesthetist(loggedInConsultant) : null;
+            
+            document.querySelectorAll('.theatre-slot').forEach(cell => {
+                const bookedBy = cell.getAttribute('data-booked-by');
+                cell.classList.remove('my-booking');
+                if (userSurname && bookedBy === userSurname) {
+                    cell.classList.add('my-booking');
+                }
+            });
+        }
+        
+        function getWeekStart(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            d.setDate(diff);
+            return d;
+        }
+        
+        function toggleTheatreSlot(dateKey, slotIndex, isBlocked, isWeekend) {
+            const userSurname = loggedInConsultant ? isAnaesthetist(loggedInConsultant) : null;
+            
+            if (isAdminUnlocked) {
+                const currentValue = theatreBookings[dateKey]?.[slotIndex] || '';
+                const newValue = prompt('Enter name for this slot (or leave empty to clear):', currentValue);
+                if (newValue === null) return;
+                if (!theatreBookings[dateKey]) theatreBookings[dateKey] = ['', '', ''];
+                theatreBookings[dateKey][slotIndex] = newValue.trim();
+                saveTheatreBookings();
+                saveTheatreBookingToCloud(dateKey, theatreBookings[dateKey]);
+                renderTheatreTable();
+                renderTheatreTotals();
+                return;
+            }
+            
+            if (!userSurname) {
+                alert('Please log in as an anaesthetist to book theatre slots');
+                return;
+            }
+            
+            if (isWeekend) {
+                alert('Theatre sessions are only available on weekdays');
+                return;
+            }
+            
+            if (isBlocked) {
+                alert('You cannot book theatre on days when you have ICU commitments');
+                return;
+            }
+            
+            if (!theatreBookings[dateKey]) theatreBookings[dateKey] = ['', '', ''];
+            
+            const currentValue = theatreBookings[dateKey][slotIndex];
+            
+            if (currentValue === userSurname) {
+                theatreBookings[dateKey][slotIndex] = '';
+            } else if (currentValue === '') {
+                const existingSlot = theatreBookings[dateKey].findIndex(s => s === userSurname);
+                if (existingSlot !== -1) {
+                    alert('You can only book one slot per day. Remove your existing booking first.');
+                    return;
+                }
+                theatreBookings[dateKey][slotIndex] = userSurname;
+            } else {
+                alert('This slot is already booked by ' + currentValue);
+                return;
+            }
+            
+            saveTheatreBookings();
+            saveTheatreBookingToCloud(dateKey, theatreBookings[dateKey]);
+            renderTheatreTable();
+            renderTheatreTotals();
+        }
+        
+        // Lieu Days
+        function addLieuDay() {
+            const dateKey = document.getElementById('lieuDateInput').value;
+            if (!dateKey) { alert('Please select a date'); return; }
+            
+            const targetInitials = isAdminUnlocked ? prompt('Enter consultant initials:', loggedInConsultant || '') : loggedInConsultant;
+            if (!targetInitials) return;
+            
+            if (!lieuDays[targetInitials]) lieuDays[targetInitials] = [];
+            if (!lieuDays[targetInitials].includes(dateKey)) {
+                lieuDays[targetInitials].push(dateKey);
+                lieuDays[targetInitials].sort();
+                saveTheatreBookings();
+                addLieuDayToCloud(targetInitials, dateKey);
+                renderLieuDaysList();
+                renderTheatreTable();
+                renderTheatreTotals();
+            }
+            document.getElementById('lieuDateInput').value = '';
+        }
+        
+        function removeLieuDay(initials, dateKey) {
+            if (lieuDays[initials]) {
+                lieuDays[initials] = lieuDays[initials].filter(d => d !== dateKey);
+                saveTheatreBookings();
+                removeLieuDayFromCloud(initials, dateKey);
+                renderLieuDaysList();
+                renderTheatreTable();
+                renderTheatreTotals();
+            }
+        }
+        
+        function renderLieuDaysList() {
+            const container = document.getElementById('lieuDaysList');
+            if (!container) return;
+            
+            const targetInitials = isAdminUnlocked ? Object.keys(lieuDays) : (loggedInConsultant ? [loggedInConsultant] : []);
+            let html = '';
+            targetInitials.forEach(initials => {
+                (lieuDays[initials] || []).forEach(dateKey => {
+                    const canRemove = isAdminUnlocked || initials === loggedInConsultant;
+                    html += `<span class="lieu-va-tag">${isAdminUnlocked ? initials + ': ' : ''}${dateKey}${canRemove ? `<span class="remove-btn" onclick="removeLieuDay('${initials}','${dateKey}')">×</span>` : ''}</span>`;
+                });
+            });
+            container.innerHTML = html || '<span style="color:var(--text-muted);font-size:0.8rem;">No lieu days</span>';
+        }
+        
+        // VA Days
+        function addVADay() {
+            const dateKey = document.getElementById('vaDateInput').value;
+            if (!dateKey) { alert('Please select a date'); return; }
+            
+            // Check eligibility - only AJ, JV, KA can add VA days (or admin)
+            if (!isAdminUnlocked && !VA_ELIGIBLE.includes(loggedInConsultant)) {
+                alert('Only AJ, JV, and KA can add VA days');
+                return;
+            }
+            
+            const targetInitials = isAdminUnlocked ? prompt('Enter consultant initials (AJ, JV, or KA):', loggedInConsultant || '') : loggedInConsultant;
+            if (!targetInitials) return;
+            
+            // Validate that target is VA eligible
+            if (!VA_ELIGIBLE.includes(targetInitials)) {
+                alert('Only AJ, JV, and KA are eligible for VA days');
+                return;
+            }
+            
+            if (!vaDays[targetInitials]) vaDays[targetInitials] = [];
+            if (!vaDays[targetInitials].includes(dateKey)) {
+                vaDays[targetInitials].push(dateKey);
+                vaDays[targetInitials].sort();
+                saveTheatreBookings();
+                addVADayToCloud(targetInitials, dateKey);
+                renderVADaysList();
+                renderTheatreTable();
+                renderTheatreTotals();
+            }
+            document.getElementById('vaDateInput').value = '';
+        }
+        
+        function removeVADay(initials, dateKey) {
+            // Only the owner or admin can remove
+            if (!isAdminUnlocked && initials !== loggedInConsultant) {
+                alert('You can only remove your own VA days');
+                return;
+            }
+            if (vaDays[initials]) {
+                vaDays[initials] = vaDays[initials].filter(d => d !== dateKey);
+                saveTheatreBookings();
+                removeVADayFromCloud(initials, dateKey);
+                renderVADaysList();
+                renderTheatreTable();
+                renderTheatreTotals();
+            }
+        }
+        
+        function renderVADaysList() {
+            const container = document.getElementById('vaDaysList');
+            if (!container) return;
+            
+            // Show all VA days but only allow removal by owner or admin
+            const allVAInitials = Object.keys(vaDays).filter(i => VA_ELIGIBLE.includes(i));
+            
+            let html = '';
+            allVAInitials.forEach(initials => {
+                (vaDays[initials] || []).forEach(dateKey => {
+                    const canRemove = isAdminUnlocked || initials === loggedInConsultant;
+                    html += `<span class="lieu-va-tag">${initials}: ${dateKey}${canRemove ? `<span class="remove-btn" onclick="removeVADay('${initials}','${dateKey}')">×</span>` : ''}</span>`;
+                });
+            });
+            container.innerHTML = html || '<span style="color:var(--text-muted);font-size:0.8rem;">No VA days</span>';
+        }
+        
+        // Totals
+        function renderTheatreTotals() {
+            const table = document.getElementById('theatreTotalsTable');
+            if (!table || !currentTheatreRota) { if (table) table.innerHTML = ''; return; }
+            
+            loadTheatreBookings();
+            
+            // Get the date range for this rota
+            const allDays = getAllDaysInRota(currentTheatreRota);
+            const rotaDates = new Set(allDays.map(d => formatDateKey(d)));
+            
+            const totals = {};
+            Object.values(ANAESTHETIST_MAP).forEach(surname => {
+                totals[surname] = { theatre: 0, lieu: 0, va: 0 };
+            });
+            
+            // Count theatre bookings only for dates in this rota
+            Object.entries(theatreBookings).forEach(([dateKey, slots]) => {
+                if (rotaDates.has(dateKey)) {
+                    slots.forEach(name => {
+                        if (name && totals[name]) totals[name].theatre++;
+                    });
+                }
+            });
+            
+            // Count lieu days only for dates in this rota
+            Object.entries(lieuDays).forEach(([initials, days]) => {
+                const surname = ANAESTHETIST_MAP[initials];
+                if (surname && totals[surname]) {
+                    const countInRota = days.filter(d => rotaDates.has(d)).length;
+                    totals[surname].lieu = countInRota;
+                }
+            });
+            
+            // Count VA days only for dates in this rota
+            Object.entries(vaDays).forEach(([initials, days]) => {
+                const surname = ANAESTHETIST_MAP[initials];
+                if (surname && totals[surname]) {
+                    const countInRota = days.filter(d => rotaDates.has(d)).length;
+                    totals[surname].va = countInRota;
+                }
+            });
+            
+            let html = '<thead><tr><th>Consultant</th><th>Theatre</th><th>Lieu</th><th>VA</th><th>Total</th></tr></thead><tbody>';
+            Object.entries(ANAESTHETIST_MAP).forEach(([initials, surname]) => {
+                const t = totals[surname];
+                const total = t.theatre + t.lieu + t.va;
+                html += `<tr><td style="font-weight:600;">${surname} (${initials})</td><td style="text-align:center;">${t.theatre}</td><td style="text-align:center;${t.lieu > 0 ? 'color:#92400e;background:#fef3c7;' : ''}">${t.lieu}</td><td style="text-align:center;${t.va > 0 ? 'color:#3730a3;background:#e0e7ff;' : ''}">${t.va}</td><td style="text-align:center;font-weight:600;">${total}</td></tr>`;
+            });
+            html += '</tbody>';
+            table.innerHTML = html;
+        }
+        
+        function exportTheatreCSV() {
+            if (!currentTheatreRota) { alert('Please select a rota first'); return; }
+            
+            loadTheatreBookings();
+            const allDays = getAllDaysInRota(currentTheatreRota);
+            const rotaDates = new Set(allDays.map(d => formatDateKey(d)));
+            
+            let csv = 'Date,Day,Slot1,Slot2,Slot3\n';
+            allDays.forEach(date => {
+                const dayOfWeek = date.getDay();
+                // Only export weekdays for theatre bookings
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                    const dateKey = formatDateKey(date);
+                    const bookings = theatreBookings[dateKey] || ['', '', ''];
+                    const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek];
+                    csv += `${dateKey},${dayName},${bookings[0]},${bookings[1]},${bookings[2]}\n`;
+                }
+            });
+            
+            csv += '\n\nSUMMARY TOTALS\nConsultant,Initials,Theatre,Lieu,VA,Total\n';
+            
+            const totals = {};
+            Object.values(ANAESTHETIST_MAP).forEach(s => { totals[s] = { theatre: 0, lieu: 0, va: 0 }; });
+            
+            // Count only bookings within this rota's dates
+            Object.entries(theatreBookings).forEach(([dateKey, slots]) => {
+                if (rotaDates.has(dateKey)) {
+                    slots.forEach(name => { if (name && totals[name]) totals[name].theatre++; });
+                }
+            });
+            
+            Object.entries(lieuDays).forEach(([i, days]) => { 
+                const s = ANAESTHETIST_MAP[i]; 
+                if (s && totals[s]) totals[s].lieu = days.filter(d => rotaDates.has(d)).length; 
+            });
+            
+            Object.entries(vaDays).forEach(([i, days]) => { 
+                const s = ANAESTHETIST_MAP[i]; 
+                if (s && totals[s]) totals[s].va = days.filter(d => rotaDates.has(d)).length; 
+            });
+            
+            Object.entries(ANAESTHETIST_MAP).forEach(([initials, surname]) => {
+                const t = totals[surname];
+                const total = t.theatre + t.lieu + t.va;
+                csv += `${surname},${initials},${t.theatre},${t.lieu},${t.va},${total}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `theatre_${currentTheatreRota.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+        
+        function exportAvailabilityCSV() {
+            if (!currentPeriod) {
+                alert('Please select a period first');
+                return;
+            }
+            
+            loadAvailabilityData();
+            const weeks = getPeriodWeeks(currentPeriod);
+            
+            // Build CSV header
+            let csv = 'Week_Start,Shift_Type,' + CONSULTANTS_LIST.join(',') + '\n';
+            
+            // Build rows
+            weeks.forEach(week => {
+                const weekKey = formatWeekKey(week);
+                
+                SHIFT_TYPES.forEach(shiftType => {
+                    const row = [weekKey, shiftType];
+                    
+                    CONSULTANTS_LIST.forEach(consultant => {
+                        const availKey = getAvailKey(weekKey, shiftType, consultant);
+                        const isNA = isNotApplicable(shiftType, consultant);
+                        
+                        if (isNA) {
+                            row.push('not_applicable');
+                        } else {
+                            const storedValue = availabilityData[availKey];
+                            // blank = available, otherwise use stored value
+                            row.push(storedValue || 'available');
+                        }
+                    });
+                    
+                    csv += row.join(',') + '\n';
+                });
+            });
+            
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const today = new Date().toISOString().split('T')[0];
+            link.download = `availability_${currentPeriod.replace(/\s+/g, '_')}_${today}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Close modal on background click
+        document.getElementById('calendarModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
