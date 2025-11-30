@@ -916,6 +916,19 @@
             font-weight: 600;
         }
         
+        /* Bank holiday indicator */
+        .bank-holiday-indicator {
+            background: #fee2e2;
+            color: #991b1b;
+            font-size: 0.65rem;
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.25rem;
+            margin-left: 0.25rem;
+            font-weight: 600;
+            display: block;
+            margin-top: 0.2rem;
+        }
+        
         .week-row-header {
             background: var(--bg-body);
             font-weight: 600;
@@ -1082,9 +1095,87 @@
             background: #f8fafc;
         }
         
+        .bank-holiday-row {
+            background: #fef2f2 !important;
+        }
+        
+        /* Warning banners */
+        .holiday-warning-banner {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+        }
+        
+        .holiday-warning-banner.bank-holiday-warning {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-color: #ef4444;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+        }
+        
+        .holiday-warning-banner .warning-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        
+        .holiday-warning-banner .warning-content {
+            flex: 1;
+        }
+        
+        .holiday-warning-banner .warning-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+            color: #92400e;
+        }
+        
+        .holiday-warning-banner.bank-holiday-warning .warning-title {
+            color: #b91c1c;
+        }
+        
+        .holiday-warning-banner .warning-text {
+            font-size: 0.85rem;
+            color: #78350f;
+            line-height: 1.4;
+        }
+        
+        .holiday-warning-banner.bank-holiday-warning .warning-text {
+            color: #991b1b;
+        }
+        
+        .holiday-warning-banner .holiday-list {
+            margin-top: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        
+        .holiday-warning-banner .holiday-chip {
+            background: rgba(255,255,255,0.7);
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
         .theatre-day-header.weekend {
             color: #64748b;
             font-style: italic;
+        }
+        
+        .theatre-day-header.bank-holiday {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .theatre-slot.bank-holiday {
+            background: #fee2e2;
+            color: #9ca3af;
         }
         
         .theatre-slot:empty::after {
@@ -1244,7 +1335,7 @@
                         <div class="admin-section">
                             <h4>🏖️ Mark School Holidays</h4>
                             <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-                                Select weeks to highlight as school holidays
+                                Select weeks to highlight as school holidays (Cambridgeshire dates pre-loaded)
                             </p>
                             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                                 <select id="holidayWeekSelect" style="flex: 1; padding: 0.5rem; border: 2px solid var(--border-dark); border-radius: 0.5rem;">
@@ -1257,6 +1348,22 @@
                             </div>
                             <div class="holiday-list" id="holidayList">
                                 <p style="padding: 0.75rem; color: var(--text-muted); font-size: 0.85rem;">No holidays marked.</p>
+                            </div>
+                            <button class="btn btn-secondary btn-small" onclick="resetSchoolHolidaysToDefaults()" style="width: 100%; margin-top: 0.5rem; font-size: 0.75rem;">🔄 Reset to Cambridgeshire Defaults</button>
+                        </div>
+                        <div class="admin-section">
+                            <h4>👨‍👧‍👦 School-Aged Children</h4>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                                Consultants who prefer school holiday allocation (higher priority for school holiday weeks)
+                            </p>
+                            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <select id="schoolChildConsultantSelect" style="flex: 1; padding: 0.5rem; border: 2px solid var(--border-dark); border-radius: 0.5rem;">
+                                    <option value="">-- Select Consultant --</option>
+                                </select>
+                                <button class="btn btn-primary btn-small" onclick="addSchoolChildConsultant()">Add</button>
+                            </div>
+                            <div id="schoolChildrenList" style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+                                <span style="color: var(--text-muted); font-size: 0.85rem;">None selected</span>
                             </div>
                         </div>
                         <div class="admin-section">
@@ -1333,6 +1440,7 @@
             
             <!-- Rota Tab -->
             <div id="rota-tab" class="tab-content">
+                <div id="rotaHolidayWarnings"></div>
                 <div class="rota-card">
                     <div class="table-wrapper">
                         <table class="rota-table" id="rotaTable">
@@ -1491,14 +1599,15 @@
                     <div id="theatreExtrasPanel" style="padding: 1rem; background: var(--bg-body); border-bottom: 1px solid var(--border); display: none;">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                             <div>
-                                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">🏖️ Lieu Days (Holidays Worked on ICU)</h4>
+                                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">🏛️ Lieu Days (Bank Holidays Worked)</h4>
                                 <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-                                    These reduce your theatre session count
+                                    Record bank holidays you worked on ICU. All consultants can add lieu days.
                                 </p>
                                 <div style="display: flex; gap: 0.5rem;">
                                     <input type="date" id="lieuDateInput" style="flex: 1; padding: 0.4rem; border: 1px solid var(--border-dark); border-radius: 0.25rem;">
                                     <button class="btn btn-primary btn-small" onclick="addLieuDay()">Add</button>
                                 </div>
+                                <div id="bankHolidaysInPeriod" style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);"></div>
                                 <div id="lieuDaysList" style="margin-top: 0.5rem; max-height: 100px; overflow-y: auto;">
                                 </div>
                             </div>
@@ -1806,6 +1915,8 @@
             renderSavedPeriodsList();
             renderHolidayList();
             populateAvailConsultantDropdown();
+            populateSchoolChildConsultantSelect();
+            renderSchoolChildrenList();
             
             document.getElementById('consultantSelect').addEventListener('change', function() {
                 selectedConsultant = this.value;
@@ -1826,18 +1937,24 @@
                     storedRotas = rotasResult.rotas;
                 }
                 
-                // Load config (periods, holidays, shifts owed)
+                // Load config (periods, holidays, shifts owed, school children)
                 const configResult = await apiCall('getConfig');
                 if (configResult && configResult.config) {
                     if (configResult.config.availabilityPeriods) {
                         availabilityPeriods = configResult.config.availabilityPeriods;
                     }
-                    if (configResult.config.schoolHolidays) {
+                    if (configResult.config.schoolHolidays && Object.keys(configResult.config.schoolHolidays).length > 0) {
                         schoolHolidays = configResult.config.schoolHolidays;
+                    } else {
+                        // Use default Cambridgeshire school holidays
+                        schoolHolidays = JSON.parse(JSON.stringify(DEFAULT_SCHOOL_HOLIDAYS));
                     }
                     if (configResult.config.shiftsOwed) {
                         currentShiftsOwed = configResult.config.shiftsOwed;
                         renderShiftsOwedTable();
+                    }
+                    if (configResult.config.schoolChildrenConsultants) {
+                        schoolChildrenConsultants = configResult.config.schoolChildrenConsultants;
                     }
                 }
                 
@@ -2310,8 +2427,114 @@
         // ============================================================
         // ROTA TABLE
         // ============================================================
+        // ============================================================
+        // HOLIDAY WARNING BANNERS
+        // ============================================================
+        function renderRotaHolidayWarnings() {
+            const container = document.getElementById('rotaHolidayWarnings');
+            if (!container || !currentRotaData) {
+                if (container) container.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            
+            // Get date range from current rota
+            const firstWeek = currentRotaData[0];
+            const lastWeek = currentRotaData[currentRotaData.length - 1];
+            
+            // Parse dates
+            const parseDate = (str) => {
+                const parts = str.split('/');
+                return new Date(parts[2], parts[1] - 1, parts[0]);
+            };
+            
+            const startDate = parseDate(firstWeek.weekStart);
+            const endDate = parseDate(lastWeek.weekStart);
+            endDate.setDate(endDate.getDate() + 6);
+            
+            // Find bank holidays in this period
+            const bankHolidaysInPeriod = getBankHolidaysInRange(startDate, endDate);
+            
+            // Find school holidays in this period
+            const schoolHolidaysInPeriod = [];
+            currentRotaData.forEach(week => {
+                const weekKey = convertWeekStartToKey(week.weekStart);
+                if (schoolHolidays[weekKey]) {
+                    schoolHolidaysInPeriod.push({
+                        weekKey: weekKey,
+                        name: schoolHolidays[weekKey],
+                        weekStart: week.weekStart
+                    });
+                }
+            });
+            
+            // Bank holiday warning (more prominent)
+            if (bankHolidaysInPeriod.length > 0) {
+                html += `
+                    <div class="holiday-warning-banner bank-holiday-warning">
+                        <div class="warning-icon">⚠️</div>
+                        <div class="warning-content">
+                            <div class="warning-title">Bank Holidays in This Period</div>
+                            <div class="warning-text">
+                                This rota period contains ${bankHolidaysInPeriod.length} bank holiday${bankHolidaysInPeriod.length > 1 ? 's' : ''}. 
+                                Ensure adequate coverage is arranged and record any bank holidays worked as lieu days.
+                            </div>
+                            <div class="holiday-list">
+                                ${bankHolidaysInPeriod.map(bh => {
+                                    const d = new Date(bh.date);
+                                    const formatted = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                                    return `<span class="holiday-chip">🏛️ ${formatted}: ${bh.name}</span>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // School holiday warning (less prominent)
+            if (schoolHolidaysInPeriod.length > 0) {
+                // Group by holiday name
+                const grouped = {};
+                schoolHolidaysInPeriod.forEach(sh => {
+                    if (!grouped[sh.name]) grouped[sh.name] = [];
+                    grouped[sh.name].push(sh);
+                });
+                
+                html += `
+                    <div class="holiday-warning-banner">
+                        <div class="warning-icon">🏖️</div>
+                        <div class="warning-content">
+                            <div class="warning-title">School Holidays in This Period</div>
+                            <div class="warning-text">
+                                ${Object.keys(grouped).length} school holiday period${Object.keys(grouped).length > 1 ? 's' : ''} 
+                                (${schoolHolidaysInPeriod.length} week${schoolHolidaysInPeriod.length > 1 ? 's' : ''} total).
+                                Consider availability preferences for consultants with school-aged children.
+                            </div>
+                            <div class="holiday-list">
+                                ${Object.entries(grouped).map(([name, weeks]) => {
+                                    return `<span class="holiday-chip">📅 ${name} (${weeks.length} wk${weeks.length > 1 ? 's' : ''})</span>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Convert DD/MM/YYYY to YYYY-MM-DD for weekKey lookup
+        function convertWeekStartToKey(dateStr) {
+            const parts = dateStr.split('/');
+            return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+
         function renderRotaTable() {
             if (!currentRotaData) return;
+            
+            // Render holiday warnings first
+            renderRotaHolidayWarnings();
             
             const table = document.getElementById('rotaTable');
             
@@ -2822,6 +3045,38 @@ END:VEVENT
         let currentPeriod = null;
         let schoolHolidays = {}; // weekKey -> holiday name
         
+        // Pre-populated Cambridgeshire school holidays
+        const DEFAULT_SCHOOL_HOLIDAYS = {
+            // 2025-2026 Academic Year
+            '2025-10-27': 'October Half Term',
+            '2025-12-22': 'Christmas',
+            '2025-12-29': 'Christmas',
+            '2026-02-16': 'February Half Term',
+            '2026-03-30': 'Easter',
+            '2026-04-06': 'Easter',
+            '2026-05-25': 'May Half Term',
+            '2026-07-20': 'Summer Holidays',
+            '2026-07-27': 'Summer Holidays',
+            '2026-08-03': 'Summer Holidays',
+            '2026-08-10': 'Summer Holidays',
+            '2026-08-17': 'Summer Holidays',
+            '2026-08-24': 'Summer Holidays',
+            // 2026-2027 Academic Year
+            '2026-10-26': 'October Half Term',
+            '2026-12-21': 'Christmas',
+            '2026-12-28': 'Christmas',
+            '2027-02-15': 'February Half Term',
+            '2027-03-29': 'Easter',
+            '2027-04-05': 'Easter',
+            '2027-05-31': 'May Half Term',
+            '2027-07-19': 'Summer Holidays',
+            '2027-07-26': 'Summer Holidays',
+            '2027-08-02': 'Summer Holidays',
+            '2027-08-09': 'Summer Holidays',
+            '2027-08-16': 'Summer Holidays',
+            '2027-08-23': 'Summer Holidays'
+        };
+        
         function loadAvailabilityData() {
             try {
                 const stored = localStorage.getItem('icuAvailability3');
@@ -2836,11 +3091,15 @@ END:VEVENT
                 if (holidays) {
                     schoolHolidays = JSON.parse(holidays);
                 }
+                // If no school holidays saved, use defaults
+                if (Object.keys(schoolHolidays).length === 0) {
+                    schoolHolidays = JSON.parse(JSON.stringify(DEFAULT_SCHOOL_HOLIDAYS));
+                }
             } catch (e) {
                 console.error('Error loading availability:', e);
                 availabilityData = {};
                 availabilityPeriods = {};
-                schoolHolidays = {};
+                schoolHolidays = JSON.parse(JSON.stringify(DEFAULT_SCHOOL_HOLIDAYS));
             }
         }
         
@@ -2884,6 +3143,107 @@ END:VEVENT
             }
             // Save to cloud
             apiCall('saveConfig', { data: { key: 'schoolHolidays', value: schoolHolidays } });
+        }
+        
+        // ============================================================
+        // UK BANK HOLIDAYS
+        // ============================================================
+        
+        // Calculate UK bank holidays for a given year
+        function getUKBankHolidays(year) {
+            const holidays = [];
+            
+            // New Year's Day (1 Jan, or next Monday if weekend)
+            let newYear = new Date(year, 0, 1);
+            if (newYear.getDay() === 0) newYear.setDate(2); // Sun -> Mon
+            if (newYear.getDay() === 6) newYear.setDate(3); // Sat -> Mon
+            holidays.push({ date: formatDateKey(newYear), name: "New Year's Day" });
+            
+            // Good Friday (Easter - 2 days)
+            const easter = calculateEaster(year);
+            const goodFriday = new Date(easter);
+            goodFriday.setDate(easter.getDate() - 2);
+            holidays.push({ date: formatDateKey(goodFriday), name: "Good Friday" });
+            
+            // Easter Monday
+            const easterMon = new Date(easter);
+            easterMon.setDate(easter.getDate() + 1);
+            holidays.push({ date: formatDateKey(easterMon), name: "Easter Monday" });
+            
+            // Early May Bank Holiday (first Monday of May)
+            const mayFirst = new Date(year, 4, 1);
+            const earlyMay = new Date(year, 4, 1 + (8 - mayFirst.getDay()) % 7);
+            holidays.push({ date: formatDateKey(earlyMay), name: "Early May Bank Holiday" });
+            
+            // Spring Bank Holiday (last Monday of May)
+            const springBH = new Date(year, 4, 31);
+            while (springBH.getDay() !== 1) springBH.setDate(springBH.getDate() - 1);
+            holidays.push({ date: formatDateKey(springBH), name: "Spring Bank Holiday" });
+            
+            // Summer Bank Holiday (last Monday of August)
+            const summerBH = new Date(year, 7, 31);
+            while (summerBH.getDay() !== 1) summerBH.setDate(summerBH.getDate() - 1);
+            holidays.push({ date: formatDateKey(summerBH), name: "Summer Bank Holiday" });
+            
+            // Christmas Day (25 Dec, or substitute)
+            let christmas = new Date(year, 11, 25);
+            if (christmas.getDay() === 0) christmas.setDate(27); // Sun -> Tue
+            if (christmas.getDay() === 6) christmas.setDate(27); // Sat -> Mon
+            holidays.push({ date: formatDateKey(christmas), name: "Christmas Day" });
+            
+            // Boxing Day (26 Dec, or substitute)
+            let boxing = new Date(year, 11, 26);
+            if (boxing.getDay() === 0) boxing.setDate(28); // Sun -> Tue
+            if (boxing.getDay() === 6) boxing.setDate(28); // Sat -> Mon
+            holidays.push({ date: formatDateKey(boxing), name: "Boxing Day" });
+            
+            return holidays;
+        }
+        
+        // Calculate Easter Sunday using the Anonymous Gregorian algorithm
+        function calculateEaster(year) {
+            const a = year % 19;
+            const b = Math.floor(year / 100);
+            const c = year % 100;
+            const d = Math.floor(b / 4);
+            const e = b % 4;
+            const f = Math.floor((b + 8) / 25);
+            const g = Math.floor((b - f + 1) / 3);
+            const h = (19 * a + b - d - g + 15) % 30;
+            const i = Math.floor(c / 4);
+            const k = c % 4;
+            const l = (32 + 2 * e + 2 * i - h - k) % 7;
+            const m = Math.floor((a + 11 * h + 22 * l) / 451);
+            const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+            const day = ((h + l - 7 * m + 114) % 31) + 1;
+            return new Date(year, month, day);
+        }
+        
+        // Get bank holidays for a date range
+        function getBankHolidaysInRange(startDate, endDate) {
+            const holidays = [];
+            const startYear = startDate.getFullYear();
+            const endYear = endDate.getFullYear();
+            
+            for (let year = startYear; year <= endYear; year++) {
+                const yearHolidays = getUKBankHolidays(year);
+                yearHolidays.forEach(h => {
+                    const hDate = new Date(h.date);
+                    if (hDate >= startDate && hDate <= endDate) {
+                        holidays.push(h);
+                    }
+                });
+            }
+            
+            return holidays;
+        }
+        
+        // Check if a date is a bank holiday
+        function isBankHoliday(dateKey) {
+            const date = new Date(dateKey);
+            const year = date.getFullYear();
+            const holidays = getUKBankHolidays(year);
+            return holidays.find(h => h.date === dateKey);
         }
         
         function populateAvailConsultantDropdown() {
@@ -3130,6 +3490,16 @@ END:VEVENT
             renderAvailabilityTable();
         }
         
+        function resetSchoolHolidaysToDefaults() {
+            if (!confirm('This will replace all school holidays with Cambridgeshire defaults (2025-2027). Continue?')) return;
+            schoolHolidays = JSON.parse(JSON.stringify(DEFAULT_SCHOOL_HOLIDAYS));
+            saveSchoolHolidays();
+            renderHolidayList();
+            updateHolidayWeekSelect();
+            renderAvailabilityTable();
+            alert('School holidays reset to Cambridgeshire defaults.');
+        }
+        
         function renderHolidayList() {
             const container = document.getElementById('holidayList');
             if (!container) return;
@@ -3150,6 +3520,86 @@ END:VEVENT
                     <button class="btn btn-danger btn-small" onclick="removeSchoolHoliday('${weekKey}')" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">✗</button>
                 </div>
             `).join('');
+        }
+        
+        // School-aged children consultants management
+        function populateSchoolChildConsultantSelect() {
+            const select = document.getElementById('schoolChildConsultantSelect');
+            if (!select) return;
+            
+            select.innerHTML = '<option value="">-- Select Consultant --</option>';
+            CONSULTANTS_LIST.forEach(c => {
+                if (!schoolChildrenConsultants.includes(c)) {
+                    const name = currentShiftsOwed?.find(s => s.initials === c)?.name || '';
+                    const option = document.createElement('option');
+                    option.value = c;
+                    option.textContent = name ? `${c} - ${name}` : c;
+                    select.appendChild(option);
+                }
+            });
+        }
+        
+        function addSchoolChildConsultant() {
+            const select = document.getElementById('schoolChildConsultantSelect');
+            const initials = select.value;
+            
+            if (!initials) {
+                alert('Please select a consultant');
+                return;
+            }
+            
+            if (!schoolChildrenConsultants.includes(initials)) {
+                schoolChildrenConsultants.push(initials);
+                saveSchoolChildrenConsultants();
+                renderSchoolChildrenList();
+                populateSchoolChildConsultantSelect();
+            }
+            
+            select.value = '';
+        }
+        
+        function removeSchoolChildConsultant(initials) {
+            schoolChildrenConsultants = schoolChildrenConsultants.filter(c => c !== initials);
+            saveSchoolChildrenConsultants();
+            renderSchoolChildrenList();
+            populateSchoolChildConsultantSelect();
+        }
+        
+        function renderSchoolChildrenList() {
+            const container = document.getElementById('schoolChildrenList');
+            if (!container) return;
+            
+            if (schoolChildrenConsultants.length === 0) {
+                container.innerHTML = '<span style="color: var(--text-muted); font-size: 0.85rem;">None selected</span>';
+                return;
+            }
+            
+            container.innerHTML = schoolChildrenConsultants.map(initials => {
+                const name = currentShiftsOwed?.find(s => s.initials === initials)?.name || initials;
+                return `<span class="lieu-va-tag">${initials} (${name})<span class="remove-btn" onclick="removeSchoolChildConsultant('${initials}')">×</span></span>`;
+            }).join('');
+        }
+        
+        function saveSchoolChildrenConsultants() {
+            try {
+                localStorage.setItem('icuSchoolChildrenConsultants', JSON.stringify(schoolChildrenConsultants));
+            } catch (e) {
+                console.error('Error saving school children consultants:', e);
+            }
+            // Save to cloud
+            apiCall('saveConfig', { data: { key: 'schoolChildrenConsultants', value: schoolChildrenConsultants } });
+        }
+        
+        function loadSchoolChildrenConsultants() {
+            try {
+                const stored = localStorage.getItem('icuSchoolChildrenConsultants');
+                if (stored) {
+                    schoolChildrenConsultants = JSON.parse(stored);
+                }
+            } catch (e) {
+                console.error('Error loading school children consultants:', e);
+                schoolChildrenConsultants = [];
+            }
         }
         
         function renderAvailabilityTable() {
@@ -3179,6 +3629,11 @@ END:VEVENT
                 const weekKey = formatWeekKey(week);
                 const isHoliday = schoolHolidays[weekKey];
                 
+                // Check for bank holidays in this week
+                const weekEnd = new Date(week);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                const bankHolsInWeek = getBankHolidaysInRange(week, weekEnd);
+                
                 SHIFT_TYPES.forEach((shiftType, shiftIdx) => {
                     const isFirstShiftOfWeek = shiftIdx === 0;
                     const rowClass = isHoliday ? 'school-holiday' : '';
@@ -3187,9 +3642,13 @@ END:VEVENT
                     
                     // Week column (only show on first shift type row, span all shift types)
                     if (isFirstShiftOfWeek) {
-                        html += `<td class="week-row-header" rowspan="${SHIFT_TYPES.length}" style="${isHoliday ? 'background: #fef3c7;' : ''}">
+                        let weekCellStyle = isHoliday ? 'background: #fef3c7;' : '';
+                        if (bankHolsInWeek.length > 0) weekCellStyle += 'background: linear-gradient(135deg, #fef3c7 50%, #fee2e2 50%);';
+                        
+                        html += `<td class="week-row-header" rowspan="${SHIFT_TYPES.length}" style="${weekCellStyle}">
                             ${formatWeekLabel(week)}
                             ${isHoliday ? `<span class="holiday-indicator">${isHoliday}</span>` : ''}
+                            ${bankHolsInWeek.map(bh => `<span class="bank-holiday-indicator">🏦 ${bh.name}</span>`).join('')}
                         </td>`;
                     }
                     
@@ -3328,12 +3787,19 @@ END:VEVENT
                 renderVADaysList();
                 renderTheatreTotals();
                 
-                // Show/hide extras panel based on login status (anaesthetists + VA-eligible)
+                // Show/hide extras panel - ALL consultants can add lieu days
                 const userSurname = loggedInConsultant ? isAnaesthetist(loggedInConsultant) : null;
                 const isVAEligible = VA_ELIGIBLE.includes(loggedInConsultant);
                 const extrasPanel = document.getElementById('theatreExtrasPanel');
                 if (extrasPanel) {
-                    extrasPanel.style.display = (userSurname || isVAEligible || isAdminUnlocked) ? 'block' : 'none';
+                    // Show for any logged-in consultant or admin
+                    extrasPanel.style.display = (loggedInConsultant || isAdminUnlocked) ? 'block' : 'none';
+                }
+                
+                // Show/hide theatre section (only anaesthetists can book theatre)
+                const theatreSection = document.getElementById('theatreBookingSection');
+                if (theatreSection) {
+                    theatreSection.style.display = (userSurname || isAdminUnlocked) ? 'block' : 'none';
                 }
                 
                 // Show/hide VA input based on eligibility
@@ -3362,7 +3828,7 @@ END:VEVENT
             'KP': 'Keil',
             'CH': 'Hall',
             'SS': 'Stevenson',
-            'ACM': 'Conway-Morris',
+            'KA': 'Agrawal',
             'VB': 'Bashliyski'
         };
         
@@ -3371,6 +3837,92 @@ END:VEVENT
         for (const [initials, surname] of Object.entries(ANAESTHETIST_MAP)) {
             SURNAME_TO_INITIALS[surname] = initials;
         }
+        
+        // UK Bank Holidays - comprehensive list for 2025-2030
+        // Format: 'YYYY-MM-DD': 'Holiday Name'
+        const UK_BANK_HOLIDAYS = {
+            // 2025
+            '2025-01-01': 'New Year\'s Day',
+            '2025-04-18': 'Good Friday',
+            '2025-04-21': 'Easter Monday',
+            '2025-05-05': 'Early May Bank Holiday',
+            '2025-05-26': 'Spring Bank Holiday',
+            '2025-08-25': 'Summer Bank Holiday',
+            '2025-12-25': 'Christmas Day',
+            '2025-12-26': 'Boxing Day',
+            // 2026
+            '2026-01-01': 'New Year\'s Day',
+            '2026-04-03': 'Good Friday',
+            '2026-04-06': 'Easter Monday',
+            '2026-05-04': 'Early May Bank Holiday',
+            '2026-05-25': 'Spring Bank Holiday',
+            '2026-08-31': 'Summer Bank Holiday',
+            '2026-12-25': 'Christmas Day',
+            '2026-12-28': 'Boxing Day (substitute)',
+            // 2027
+            '2027-01-01': 'New Year\'s Day',
+            '2027-03-26': 'Good Friday',
+            '2027-03-29': 'Easter Monday',
+            '2027-05-03': 'Early May Bank Holiday',
+            '2027-05-31': 'Spring Bank Holiday',
+            '2027-08-30': 'Summer Bank Holiday',
+            '2027-12-27': 'Christmas Day (substitute)',
+            '2027-12-28': 'Boxing Day (substitute)',
+            // 2028
+            '2028-01-03': 'New Year\'s Day (substitute)',
+            '2028-04-14': 'Good Friday',
+            '2028-04-17': 'Easter Monday',
+            '2028-05-01': 'Early May Bank Holiday',
+            '2028-05-29': 'Spring Bank Holiday',
+            '2028-08-28': 'Summer Bank Holiday',
+            '2028-12-25': 'Christmas Day',
+            '2028-12-26': 'Boxing Day',
+            // 2029
+            '2029-01-01': 'New Year\'s Day',
+            '2029-03-30': 'Good Friday',
+            '2029-04-02': 'Easter Monday',
+            '2029-05-07': 'Early May Bank Holiday',
+            '2029-05-28': 'Spring Bank Holiday',
+            '2029-08-27': 'Summer Bank Holiday',
+            '2029-12-25': 'Christmas Day',
+            '2029-12-26': 'Boxing Day',
+            // 2030
+            '2030-01-01': 'New Year\'s Day',
+            '2030-04-19': 'Good Friday',
+            '2030-04-22': 'Easter Monday',
+            '2030-05-06': 'Early May Bank Holiday',
+            '2030-05-27': 'Spring Bank Holiday',
+            '2030-08-26': 'Summer Bank Holiday',
+            '2030-12-25': 'Christmas Day',
+            '2030-12-26': 'Boxing Day'
+        };
+        
+        // Get bank holidays in a date range
+        function getBankHolidaysInRange(startDate, endDate) {
+            const holidays = {};
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            Object.entries(UK_BANK_HOLIDAYS).forEach(([dateStr, name]) => {
+                const holidayDate = new Date(dateStr);
+                if (holidayDate >= start && holidayDate <= end) {
+                    holidays[dateStr] = name;
+                }
+            });
+            
+            return holidays;
+        }
+        
+        // Check if a date is a bank holiday
+        function isBankHoliday(dateKey) {
+            return UK_BANK_HOLIDAYS[dateKey] || bankHolidays[dateKey] || null;
+        }
+        
+        // Consultants with school-aged children (prefer school holiday allocation)
+        let schoolChildrenConsultants = [];
+        
+        // Custom bank holidays (can be added via admin)
+        let bankHolidays = {};
         
         let theatreBookings = {}; // dateKey -> [slot1, slot2, slot3]
         let lieuDays = {}; // initials -> [dateKey, dateKey, ...]
@@ -3481,12 +4033,19 @@ END:VEVENT
                 if (select) select.value = loggedInConsultant;
             }
             
-            // Show extras panel if logged in as anaesthetist, VA-eligible, or admin
+            // Show extras panel if logged in (ALL consultants can add lieu days) or admin
             const userSurname = loggedInConsultant ? isAnaesthetist(loggedInConsultant) : null;
             const isVAEligible = VA_ELIGIBLE.includes(loggedInConsultant);
             const extrasPanel = document.getElementById('theatreExtrasPanel');
             if (extrasPanel) {
-                extrasPanel.style.display = (userSurname || isVAEligible || isAdminUnlocked) ? 'block' : 'none';
+                // Show for any logged-in consultant or admin
+                extrasPanel.style.display = (loggedInConsultant || isAdminUnlocked) ? 'block' : 'none';
+            }
+            
+            // Show/hide theatre section (only anaesthetists can book theatre)
+            const theatreSection = document.getElementById('theatreBookingSection');
+            if (theatreSection) {
+                theatreSection.style.display = (userSurname || isAdminUnlocked) ? 'block' : 'none';
             }
             
             // Show/hide VA input based on eligibility (only AJ, JV, KA can add VA)
@@ -3498,10 +4057,53 @@ END:VEVENT
             // Auto-populate VA days from rota
             autoPopulateVADays();
             
+            // Auto-populate bank holiday lieu days
+            autoPopulateBankHolidayLieu();
+            
             renderTheatreTable();
             renderLieuDaysList();
             renderVADaysList();
             renderTheatreTotals();
+        }
+        
+        // Display bank holidays in the current rota period
+        function renderBankHolidaysInPeriod() {
+            const container = document.getElementById('bankHolidaysInPeriod');
+            if (!container || !currentTheatreRota) {
+                if (container) container.innerHTML = '';
+                return;
+            }
+            
+            const allDays = getAllDaysInRota(currentTheatreRota);
+            if (allDays.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            const startDate = allDays[0];
+            const endDate = allDays[allDays.length - 1];
+            const holidaysInRange = getBankHolidaysInRange(startDate, endDate);
+            
+            if (Object.keys(holidaysInRange).length === 0) {
+                container.innerHTML = '<em>No bank holidays in this period</em>';
+                return;
+            }
+            
+            const holidayList = Object.entries(holidaysInRange)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([date, name]) => {
+                    const d = new Date(date);
+                    const formatted = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                    return `<span style="display: inline-block; margin: 2px 4px 2px 0; padding: 2px 6px; background: #fee2e2; color: #dc2626; border-radius: 4px; font-size: 0.7rem;">${formatted}: ${name}</span>`;
+                }).join('');
+            
+            container.innerHTML = '<strong>Bank holidays in this period:</strong><br>' + holidayList;
+        }
+        
+        // Auto-populate lieu days for bank holidays worked (informational display)
+        function autoPopulateBankHolidayLieu() {
+            // Just render the bank holidays list for reference
+            renderBankHolidaysInPeriod();
         }
         
         function autoPopulateVADays() {
@@ -3713,6 +4315,7 @@ END:VEVENT
                 const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                 const bookings = theatreBookings[dateKey] || ['', '', ''];
                 const isHoliday = schoolHolidays[formatWeekKey(getWeekStart(date))];
+                const bankHolidayName = isBankHoliday(dateKey);
                 
                 // Use viewInitials for ICU commitments display
                 const icuCommitment = viewInitials ? getICUCommitmentsForDate(dateKey, viewInitials) : null;
@@ -3721,12 +4324,14 @@ END:VEVENT
                 // Only block if logged in (not just viewing)
                 const isBlocked = loggedInConsultant && icuCommitment !== null;
                 
-                // Row styling for weekends
-                const rowClass = isWeekend ? 'theatre-weekend-row' : '';
+                // Row styling for weekends and bank holidays
+                let rowClass = isWeekend ? 'theatre-weekend-row' : '';
+                if (bankHolidayName) rowClass += ' bank-holiday-row';
                 
                 html += `<tr class="${rowClass}">`;
-                html += `<td class="theatre-day-header ${isWeekend ? 'weekend' : ''}">
+                html += `<td class="theatre-day-header ${isWeekend ? 'weekend' : ''} ${bankHolidayName ? 'bank-holiday' : ''}">
                     ${formatTheatreDate(date)}
+                    ${bankHolidayName ? `<span class="holiday-indicator" style="background:#fee2e2;color:#dc2626;">🏛️ ${bankHolidayName}</span>` : ''}
                     ${isHoliday ? `<span class="holiday-indicator">${isHoliday}</span>` : ''}
                     ${isLieuDay ? `<span class="holiday-indicator" style="background:#fef3c7;color:#92400e;">LIEU</span>` : ''}
                     ${isVADay ? `<span class="holiday-indicator" style="background:#e0e7ff;color:#3730a3;">VA</span>` : ''}
@@ -3735,7 +4340,7 @@ END:VEVENT
                 // ICU commitment column - show for selected/logged-in consultant
                 html += `<td class="theatre-icu-cell ${icuCommitment ? 'has-icu' : ''}">${icuCommitment || '-'}</td>`;
                 
-                // Theatre slots - only bookable on weekdays
+                // Theatre slots - only bookable on weekdays (and not bank holidays for most)
                 for (let slot = 0; slot < 3; slot++) {
                     const slotValue = bookings[slot] || '';
                     const isMyBooking = userSurname && slotValue === userSurname;
@@ -3743,6 +4348,8 @@ END:VEVENT
                     let cellClass = 'theatre-slot';
                     if (isWeekend) {
                         cellClass += ' weekend';
+                    } else if (bankHolidayName) {
+                        cellClass += ' bank-holiday';
                     } else if (isBlocked && !isAdminUnlocked) {
                         cellClass += ' icu-blocked';
                     } else if (isMyBooking) {
@@ -3971,44 +4578,146 @@ END:VEVENT
             const allDays = getAllDaysInRota(currentTheatreRota);
             const rotaDates = new Set(allDays.map(d => formatDateKey(d)));
             
-            const totals = {};
-            Object.values(ANAESTHETIST_MAP).forEach(surname => {
-                totals[surname] = { theatre: 0, lieu: 0, va: 0 };
+            // Get bank holidays in this period
+            const firstDay = allDays[0];
+            const lastDay = allDays[allDays.length - 1];
+            const bankHolidaysInPeriod = getBankHolidaysInRange(firstDay, lastDay);
+            const bankHolidayDates = new Set(bankHolidaysInPeriod.map(bh => bh.date));
+            
+            // Get school holiday weeks in this period
+            const schoolHolidayWeekKeys = new Set();
+            currentTheatreRota.forEach(week => {
+                const weekKey = convertWeekStartToKey(week.weekStart);
+                if (schoolHolidays[weekKey]) {
+                    schoolHolidayWeekKeys.add(weekKey);
+                }
             });
             
-            // Count theatre bookings only for dates in this rota
+            // Build totals for ALL consultants (not just anaesthetists)
+            const totals = {};
+            
+            // Initialize for anaesthetists (they have theatre + lieu + va + bh + sh)
+            Object.entries(ANAESTHETIST_MAP).forEach(([initials, surname]) => {
+                totals[initials] = { name: surname, theatre: 0, lieu: 0, va: 0, bankHol: 0, schoolHol: 0, isAnaesthetist: true };
+            });
+            
+            // Initialize for non-anaesthetist consultants (they only have lieu, and VA-eligible have VA)
+            CONSULTANTS_LIST.forEach(initials => {
+                if (!totals[initials]) {
+                    const name = currentShiftsOwed?.find(s => s.initials === initials)?.name || initials;
+                    totals[initials] = { name: name, theatre: 0, lieu: 0, va: 0, bankHol: 0, schoolHol: 0, isAnaesthetist: false };
+                }
+            });
+            
+            // Count theatre bookings only for dates in this rota (by surname)
             Object.entries(theatreBookings).forEach(([dateKey, slots]) => {
                 if (rotaDates.has(dateKey)) {
-                    slots.forEach(name => {
-                        if (name && totals[name]) totals[name].theatre++;
+                    slots.forEach(surnameOrName => {
+                        if (surnameOrName) {
+                            // Find initials from surname
+                            const initials = SURNAME_TO_INITIALS[surnameOrName];
+                            if (initials && totals[initials]) {
+                                totals[initials].theatre++;
+                            }
+                        }
                     });
                 }
             });
             
-            // Count lieu days only for dates in this rota
+            // Count lieu days only for dates in this rota (by initials)
+            // Also track if lieu day was a bank holiday
             Object.entries(lieuDays).forEach(([initials, days]) => {
-                const surname = ANAESTHETIST_MAP[initials];
-                if (surname && totals[surname]) {
-                    const countInRota = days.filter(d => rotaDates.has(d)).length;
-                    totals[surname].lieu = countInRota;
+                if (totals[initials]) {
+                    const daysInRota = days.filter(d => rotaDates.has(d));
+                    totals[initials].lieu = daysInRota.length;
+                    // Count how many of those were bank holidays
+                    totals[initials].bankHol = daysInRota.filter(d => bankHolidayDates.has(d)).length;
                 }
             });
             
-            // Count VA days only for dates in this rota
+            // Count VA days only for dates in this rota (by initials)
             Object.entries(vaDays).forEach(([initials, days]) => {
-                const surname = ANAESTHETIST_MAP[initials];
-                if (surname && totals[surname]) {
+                if (totals[initials]) {
                     const countInRota = days.filter(d => rotaDates.has(d)).length;
-                    totals[surname].va = countInRota;
+                    totals[initials].va = countInRota;
                 }
             });
             
-            let html = '<thead><tr><th>Consultant</th><th>Theatre</th><th>Lieu</th><th>VA</th><th>Total</th></tr></thead><tbody>';
-            Object.entries(ANAESTHETIST_MAP).forEach(([initials, surname]) => {
-                const t = totals[surname];
-                const total = t.theatre + t.lieu + t.va;
-                html += `<tr><td style="font-weight:600;">${surname} (${initials})</td><td style="text-align:center;">${t.theatre}</td><td style="text-align:center;${t.lieu > 0 ? 'color:#92400e;background:#fef3c7;' : ''}">${t.lieu}</td><td style="text-align:center;${t.va > 0 ? 'color:#3730a3;background:#e0e7ff;' : ''}">${t.va}</td><td style="text-align:center;font-weight:600;">${total}</td></tr>`;
+            // Count school holiday shifts worked from the rota itself
+            if (currentTheatreRota) {
+                currentTheatreRota.forEach(week => {
+                    const weekKey = convertWeekStartToKey(week.weekStart);
+                    if (schoolHolidayWeekKeys.has(weekKey)) {
+                        // Count all shifts this week for each consultant
+                        const weekShifts = {};
+                        Object.values(week.days).forEach(day => {
+                            ['d1', 'd2', 'd3', 'rrt'].forEach(slot => {
+                                const consultant = day[slot];
+                                if (consultant && totals[consultant]) {
+                                    weekShifts[consultant] = (weekShifts[consultant] || 0) + 1;
+                                }
+                            });
+                        });
+                        // Add to school holiday count
+                        Object.entries(weekShifts).forEach(([initials, count]) => {
+                            if (totals[initials]) {
+                                totals[initials].schoolHol += count;
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Sort: anaesthetists first, then others, both alphabetically by surname/name
+            const sortedEntries = Object.entries(totals).sort((a, b) => {
+                // Anaesthetists first
+                if (a[1].isAnaesthetist !== b[1].isAnaesthetist) {
+                    return a[1].isAnaesthetist ? -1 : 1;
+                }
+                // Then alphabetically by name
+                return a[1].name.localeCompare(b[1].name);
             });
+            
+            let html = '<thead><tr><th>Consultant</th><th>Theatre</th><th>Lieu</th><th>🏛️ BH</th><th>🏖️ SH</th><th>VA</th><th>Total</th></tr></thead><tbody>';
+            
+            // Anaesthetists section
+            html += '<tr><td colspan="7" style="background:#e0f2fe;font-weight:600;font-size:0.8rem;">Anaesthetists</td></tr>';
+            sortedEntries.filter(([_, t]) => t.isAnaesthetist).forEach(([initials, t]) => {
+                const total = t.theatre + t.lieu + t.va;
+                html += `<tr>
+                    <td style="font-weight:600;">${t.name} (${initials})</td>
+                    <td style="text-align:center;">${t.theatre}</td>
+                    <td style="text-align:center;${t.lieu > 0 ? 'color:#92400e;background:#fef3c7;' : ''}">${t.lieu}</td>
+                    <td style="text-align:center;${t.bankHol > 0 ? 'color:#dc2626;background:#fee2e2;font-weight:600;' : 'color:#9ca3af;'}">${t.bankHol || '-'}</td>
+                    <td style="text-align:center;${t.schoolHol > 0 ? 'color:#d97706;background:#fef3c7;' : 'color:#9ca3af;'}">${t.schoolHol || '-'}</td>
+                    <td style="text-align:center;${t.va > 0 ? 'color:#3730a3;background:#e0e7ff;' : ''}">${t.va}</td>
+                    <td style="text-align:center;font-weight:600;">${total}</td>
+                </tr>`;
+            });
+            
+            // Other consultants section (only show if they have any lieu/VA days or school holiday shifts)
+            const othersWithData = sortedEntries.filter(([_, t]) => !t.isAnaesthetist && (t.lieu > 0 || t.va > 0 || t.schoolHol > 0 || t.bankHol > 0));
+            if (othersWithData.length > 0) {
+                html += '<tr><td colspan="7" style="background:#fef3c7;font-weight:600;font-size:0.8rem;">Other Consultants</td></tr>';
+                othersWithData.forEach(([initials, t]) => {
+                    const total = t.lieu + t.va;
+                    html += `<tr>
+                        <td style="font-weight:600;">${t.name} (${initials})</td>
+                        <td style="text-align:center;color:#9ca3af;">-</td>
+                        <td style="text-align:center;${t.lieu > 0 ? 'color:#92400e;background:#fef3c7;' : ''}">${t.lieu}</td>
+                        <td style="text-align:center;${t.bankHol > 0 ? 'color:#dc2626;background:#fee2e2;font-weight:600;' : 'color:#9ca3af;'}">${t.bankHol || '-'}</td>
+                        <td style="text-align:center;${t.schoolHol > 0 ? 'color:#d97706;background:#fef3c7;' : 'color:#9ca3af;'}">${t.schoolHol || '-'}</td>
+                        <td style="text-align:center;${t.va > 0 ? 'color:#3730a3;background:#e0e7ff;' : ''}">${t.va}</td>
+                        <td style="text-align:center;font-weight:600;">${total}</td>
+                    </tr>`;
+                });
+            }
+            
+            // Legend
+            html += `<tr><td colspan="7" style="background:#f8fafc;font-size:0.7rem;padding:0.5rem;">
+                <strong>Legend:</strong> 🏛️ BH = Bank Holidays worked (from Lieu days) | 🏖️ SH = School Holiday shifts worked (from Rota)
+            </td></tr>`;
+            
             html += '</tbody>';
             table.innerHTML = html;
         }
@@ -4080,15 +4789,22 @@ END:VEVENT
             loadAvailabilityData();
             const weeks = getPeriodWeeks(currentPeriod);
             
-            // Build CSV header
-            let csv = 'Week_Start,Shift_Type,' + CONSULTANTS_LIST.join(',') + '\n';
+            // Build CSV header - add columns for holidays
+            let csv = 'Week_Start,Shift_Type,School_Holiday,Bank_Holidays,' + CONSULTANTS_LIST.join(',') + '\n';
             
             // Build rows
             weeks.forEach(week => {
                 const weekKey = formatWeekKey(week);
+                const isSchoolHoliday = schoolHolidays[weekKey] || '';
+                
+                // Get bank holidays in this week
+                const weekEnd = new Date(week);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                const bankHolsInWeek = getBankHolidaysInRange(week, weekEnd);
+                const bankHolNames = bankHolsInWeek.map(bh => bh.name).join('; ');
                 
                 SHIFT_TYPES.forEach(shiftType => {
-                    const row = [weekKey, shiftType];
+                    const row = [weekKey, shiftType, isSchoolHoliday, bankHolNames];
                     
                     CONSULTANTS_LIST.forEach(consultant => {
                         const availKey = getAvailKey(weekKey, shiftType, consultant);
@@ -4106,6 +4822,11 @@ END:VEVENT
                     csv += row.join(',') + '\n';
                 });
             });
+            
+            // Add metadata section for rota generator
+            csv += '\n# METADATA\n';
+            csv += '# School_Children_Consultants,' + schoolChildrenConsultants.join(';') + '\n';
+            csv += '# Period,' + currentPeriod + '\n';
             
             // Download
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
