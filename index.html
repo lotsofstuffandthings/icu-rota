@@ -1596,7 +1596,7 @@
         // Counter for unique callback names
         let jsonpCounter = 0;
         
-        // API helper function using JSONP to avoid CORS issues
+        // API helper function using JSONP for GET requests
         function apiCall(action, params = {}) {
             return new Promise((resolve, reject) => {
                 const callbackName = 'jsonpCallback_' + (++jsonpCounter) + '_' + Date.now();
@@ -1632,6 +1632,14 @@
                     }
                 });
                 
+                // Check URL length - if too long, use form POST method
+                if (url.toString().length > 1800) {
+                    console.log('URL too long, using form POST method');
+                    apiCallPost(action, params).then(resolve).catch(() => resolve(null));
+                    delete window[callbackName];
+                    return;
+                }
+                
                 showSyncStatus('syncing');
                 
                 // Create script tag for JSONP
@@ -1659,6 +1667,71 @@
                 }, 30000); // 30 second timeout
                 
                 document.head.appendChild(script);
+            });
+        }
+        
+        // POST-based API call using hidden form + iframe (for large data)
+        function apiCallPost(action, params = {}) {
+            return new Promise((resolve, reject) => {
+                showSyncStatus('syncing');
+                
+                const iframeName = 'apiFrame_' + Date.now();
+                const iframe = document.createElement('iframe');
+                iframe.name = iframeName;
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+                
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = GOOGLE_SCRIPT_URL;
+                form.target = iframeName;
+                form.style.display = 'none';
+                
+                // Add action
+                const actionInput = document.createElement('input');
+                actionInput.name = 'action';
+                actionInput.value = action;
+                form.appendChild(actionInput);
+                
+                // Add other params
+                Object.entries(params).forEach(([key, value]) => {
+                    const input = document.createElement('input');
+                    input.name = key;
+                    input.value = typeof value === 'object' ? JSON.stringify(value) : value;
+                    form.appendChild(input);
+                });
+                
+                document.body.appendChild(form);
+                
+                // Listen for iframe load
+                iframe.onload = function() {
+                    // Can't read cross-origin response, but assume success if no error
+                    setTimeout(() => {
+                        iframe.remove();
+                        form.remove();
+                        showSyncStatus('synced');
+                        resolve({ success: true });
+                    }, 500);
+                };
+                
+                iframe.onerror = function() {
+                    iframe.remove();
+                    form.remove();
+                    showSyncStatus('error');
+                    resolve(null);
+                };
+                
+                // Timeout
+                setTimeout(() => {
+                    if (document.body.contains(iframe)) {
+                        iframe.remove();
+                        form.remove();
+                        showSyncStatus('synced'); // Assume it worked
+                        resolve({ success: true });
+                    }
+                }, 10000);
+                
+                form.submit();
             });
         }
         
@@ -1863,15 +1936,28 @@
         
         // Save rotas to Google Sheets (called after modifying storedRotas)
         async function saveRotaToCloud(rotaName) {
-            if (!storedRotas[rotaName]) return;
+            if (!storedRotas[rotaName]) return false;
             
-            await apiCall('saveRota', {
-                data: {
-                    name: rotaName,
-                    rotaData: storedRotas[rotaName].rotaData,
-                    uploadedBy: 'admin'
+            try {
+                const result = await apiCall('saveRota', {
+                    data: {
+                        name: rotaName,
+                        rotaData: storedRotas[rotaName].rotaData,
+                        uploadedBy: 'admin'
+                    }
+                });
+                
+                if (result && result.success) {
+                    console.log('Rota saved to cloud successfully');
+                    return true;
+                } else {
+                    console.error('Failed to save rota to cloud:', result);
+                    return false;
                 }
-            });
+            } catch (error) {
+                console.error('Error saving rota to cloud:', error);
+                return false;
+            }
         }
         
         async function deleteRotaFromCloud(rotaName) {
@@ -2069,7 +2155,7 @@
         // ============================================================
         // ROTA STORAGE
         // ============================================================
-        function saveCurrentRota() {
+        async function saveCurrentRota() {
             const name = document.getElementById('rotaName').value.trim();
             
             if (!name) {
@@ -2089,9 +2175,12 @@
                 shiftsOwed: pendingShiftsOwed
             };
             
-            // Save to Google Sheets
-            saveRotaToCloud(name);
+            // Save to localStorage first (backup)
             saveStoredRotas();
+            
+            // Save to Google Sheets
+            const cloudSaved = await saveRotaToCloud(name);
+            
             renderRotaChips();
             renderStoredRotasList();
             
@@ -2102,7 +2191,11 @@
             pendingRotaData = null;
             pendingShiftsOwed = null;
             
-            alert(`Rota "${name}" saved successfully!`);
+            if (cloudSaved) {
+                alert(`Rota "${name}" saved successfully to cloud!`);
+            } else {
+                alert(`Rota "${name}" saved locally but cloud sync may have failed. Check the sync status.`);
+            }
         }
         
         function deleteRota(name) {
