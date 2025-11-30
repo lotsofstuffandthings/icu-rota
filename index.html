@@ -1703,35 +1703,15 @@
                 
                 document.body.appendChild(form);
                 
-                // Listen for iframe load
-                iframe.onload = function() {
-                    // Can't read cross-origin response, but assume success if no error
-                    setTimeout(() => {
-                        iframe.remove();
-                        form.remove();
-                        showSyncStatus('synced');
-                        resolve({ success: true });
-                    }, 500);
-                };
+                // Submit and assume success after delay (can't read cross-origin response)
+                form.submit();
                 
-                iframe.onerror = function() {
+                setTimeout(() => {
                     iframe.remove();
                     form.remove();
-                    showSyncStatus('error');
-                    resolve(null);
-                };
-                
-                // Timeout
-                setTimeout(() => {
-                    if (document.body.contains(iframe)) {
-                        iframe.remove();
-                        form.remove();
-                        showSyncStatus('synced'); // Assume it worked
-                        resolve({ success: true });
-                    }
-                }, 10000);
-                
-                form.submit();
+                    showSyncStatus('synced');
+                    resolve({ success: true });
+                }, 2000);
             });
         }
         
